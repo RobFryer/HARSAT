@@ -516,38 +516,13 @@ ctsm.check.unit.biota <- function(data, info) {
     "g/g", "mg/mg", "ug/ug", "ng/ng", "pg/pg", "mg/g", "ug/g", "ng/g", "pg/g", 
     "g/kg", "mg/kg", "ug/kg", "ng/kg", "pg/kg")
   
-  id <- ctsm_is_contaminant(data$pargroup, exclude = "I-RNC") & data$determinand != "TEQDFP"
+  id <- ctsm_is_contaminant(data$pargroup, exclude = "I-RNC") 
   if (any(id))
     data[id,] <- within(data[id,], {
       ok <- unit %in% standard_unit
       action <- ifelse(ok, "none", "error")
     })
     
-  id <- data$determinand %in% "TEQDFP"
-  if (any(id)) {
-    
-    TEQ_unit <- paste("TEQ", standard_unit)
-    
-    data[id,] <- within(data[id,], {
-      ok <- unit %in% c(standard_unit, TEQ_unit)
-      action <- ifelse(ok, "none", "error")
-      
-      if (any(TEQ_unit %in% unit)) {
-        lifecycle::deprecate_warn(
-          "1.0.2", 
-          I("use of units of the form 'TEQ ug/kg' or 'TEQ pg/g'"),
-          details = c(
-            i = "use e.g. 'ug/kg' instead of 'TEQ ug/kg'", 
-            i = "you might need to update the determinand reference table"
-          ),
-          env = rlang::caller_env(), 
-          user_env = rlang::caller_env(2)
-        )
-      }  
-    
-    })
-  }
-
   id <- data$determinand %in% c("LNMEA")
   if (any(id))
     data[id,] <- within(data[id,], {

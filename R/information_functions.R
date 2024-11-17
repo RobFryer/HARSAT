@@ -647,27 +647,6 @@ ctsm_read_determinand <- function(
   })
   
 
-  # warn about deprecated TEQ units
-  
-  not_ok <- sapply(compartment, function(id) {
-    unit_id <- paste0(id, "_unit")
-    any(grepl("^TEQ ", data[[unit_id]]))
-  })
-
-  if (any(not_ok)) {
-    lifecycle::deprecate_warn(
-      "1.0.2", 
-      I("use of units such as 'TEQ ug/kg' and 'TEQ pg/g'"),
-      details = c(
-        i = "use e.g. 'ug/kg' instead of 'TEQ ug/kg'", 
-        i = "you might need to update the determinand reference table"
-      ),
-      env = rlang::caller_env(2), 
-      user_env = rlang::caller_env(3)
-    )
-  }  
-  
-
   # tidy up for output
   
   data <- tibble::column_to_rownames(data, "determinand")
