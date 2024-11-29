@@ -672,10 +672,6 @@ write_summary_table <- function(
     climit_last_year = "clLY"
   )
   
-  if ("class" %in% names(summary)) {
-    summary <- dplyr::rename(summary, imposex_class = "class")
-  }
-  
   if ("dtrend_obs" %in% names(summary)) {
     summary <- dplyr::rename(
       summary, 
