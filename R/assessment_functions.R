@@ -1023,12 +1023,12 @@ assess_lmm <- function(
   
   # construct summary output -
   
-  output$summary <- data.frame(
-    nyall = nYearFull, nyfit = nYear, nypos = nYearPos, 
-    firstYearAll = firstYearFull, firstYearFit = min(data$year), lastyear = max(data$year), 
-    p_nonlinear = NA, p_linear = NA, p_overall = NA, pltrend = NA, ltrend = NA, prtrend = NA, 
-    rtrend = NA, dtrend = NA, meanLY = NA, clLY = NA)
-  
+  output$summary <- initialise_assessment_summary(
+    data, 
+    nyall = nYearFull,
+    firstYearAll = firstYearFull, 
+    nypos = nYearPos
+  )
   
   output$summary <- within(output$summary, {
     
@@ -1675,6 +1675,49 @@ ctsm_dyear <- function(
 }
 
 
+# Utility functions ----
+
+initialise_assessment_summary <- function(
+    data, nyall, firstYearAll, nypos = NULL, .extra = NULL) {
+  
+  year <- data$year
+  
+  nyfit <- dplyr::n_distinct(year)
+  
+  if (is.null(nypos)) {
+    nypos <- nyfit
+  }
+  
+  out <- data.frame(
+    nyall = nyall, 
+    nyfit = nyfit, 
+    nypos = nypos, 
+    firstYearAll = firstYearAll, 
+    firstYearFit = min(year), 
+    lastyear = max(year),
+    p_nonlinear = NA_real_, 
+    p_linear = NA_real_, 
+    p_overall = NA_real_, 
+    pltrend = NA_real_, 
+    ltrend = NA_real_, 
+    prtrend = NA_real_, 
+    rtrend = NA_real_, 
+    dtrend = NA_real_, 
+    meanLY = NA_real_, 
+    clLY = NA_real_ 
+  )  
+  
+  if (!is.null(.extra)) {
+    .extra <- as.data.frame(.extra)
+    if (any(names(.extra) %in% names(out)) || nrow(.extra) != 1) {
+      stop("error in specifying extra output variables")
+    }
+    out <- cbind(out, .extra)
+  }
+  
+  out
+}
+
 
 
 
@@ -2014,11 +2057,11 @@ assess_survival <- function(
   
   # construct summary output -
   
-  output$summary <- data.frame(
-    nyall = nYearFull, nyfit = nYear, nypos = nYearPos, 
-    firstYearAll = firstYearFull, firstYearFit = min(data$year), lastyear = max(data$year), 
-    p_nonlinear = NA, p_linear = NA, p_overall = NA, pltrend = NA, ltrend = NA, prtrend = NA, 
-    rtrend = NA, dtrend = NA, meanLY = NA, clLY = NA)
+  output$summary <- initialise_assessment_summary(
+    data, 
+    nyall = nYearFull,
+    firstYearAll = firstYearFull, 
+  )
 
   
   output$summary <- within(output$summary, {
@@ -2477,12 +2520,12 @@ assess_beta <- function(
   
   # construct summary output -
   
-  output$summary <- data.frame(
-    nyall = nYearFull, nyfit = nYear, nypos = nYearPos, 
-    firstYearAll = firstYearFull, firstYearFit = min(data$year), lastyear = max(data$year), 
-    p_nonlinear = NA, p_linear = NA, p_overall = NA, pltrend = NA, ltrend = NA, prtrend = NA, 
-    rtrend = NA, dtrend = NA, meanLY = NA, clLY = NA)
-  
+  output$summary <- initialise_assessment_summary(
+    data, 
+    nyall = nYearFull,
+    firstYearAll = firstYearFull, 
+  )
+
   
   output$summary <- within(output$summary, {
     
@@ -2878,11 +2921,11 @@ assess_negativebinomial <- function(
   
   # construct summary output -
   
-  output$summary <- data.frame(
-    nyall = nYearFull, nyfit = nYear, nypos = nYearPos, 
-    firstYearAll = firstYearFull, firstYearFit = min(data$year), lastyear = max(data$year), 
-    p_nonlinear = NA, p_linear = NA, p_overall = NA, pltrend = NA, ltrend = NA, prtrend = NA, 
-    rtrend = NA, dtrend = NA, meanLY = NA, clLY = NA)
+  output$summary <- initialise_assessment_summary(
+    data, 
+    nyall = nYearFull,
+    firstYearAll = firstYearFull, 
+  )
   
   
   output$summary <- within(output$summary, {
