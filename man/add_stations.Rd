@@ -45,7 +45,7 @@ Norway, Portugal, Spain (2005 onwards), Sweden, The Netherlands (2007
 onwards), United Kingdom. All other stations are matched by coordinates.
 \item \code{area}: a vector of strings containing one or more of \code{"OSPAR"}, \code{"HELCOM"}
 and \code{"AMAP"}; this restricts the stations to those in the corresponding
-convention area(s); NULL matches to all stations in the station dictionary
+convention area(s); \code{NULL} matches to all stations in the station dictionary
 \item \code{datatype}: a logical specifying whether the stations should be restricted
 to those with an appropriate datatype. If \code{TRUE}, a contaminant measurement
 in biota (for example) will only be matched to stations with
@@ -113,9 +113,9 @@ the station geometry. Not implemented yet, so defaults to \code{FALSE}.
 
 The default values of \code{info$add_stations} depend on \code{info$purpose} as follows:
 \itemize{
-\item \code{"AMAP"}: \code{list(method = "both", area = "HELCOM",  datatype = FALSE, temporal = FALSE, governance_type = "none",  governance_id = NULL, group = FALSE, check_coordinates = FALSE)}
+\item \code{"AMAP"}: \code{list(method = "both", area = "AMAP",  datatype = FALSE, temporal = FALSE, governance_type = "none",  governance_id = NULL, group = FALSE, check_coordinates = FALSE)}
 \item \code{"HELCOM"}: \code{list(method = "both", area = "HELCOM",  datatype = FALSE, temporal = FALSE, governance_type = "none",  governance_id = NULL, group = FALSE, check_coordinates = FALSE)}
 \item \code{"OSPAR"}: \code{list(method = "both", area = "OSPAR",  datatype = TRUE, temporal = TRUE, governance_type = "both",  governance_id = c("OSPAR", "AMAP"), group = TRUE,  check_coordinates = FALSE)}
-\item \code{"custom"}: \code{list(method = "name", area = "NULL",  datatype = FALSE, temporal = FALSE, governance_type = "none",  governance_id = NULL, group = FALSE, check_coordinates = FALSE)}
+\item \code{"custom"}: \code{list(method = "name", area = NULL,  datatype = FALSE, temporal = FALSE, governance_type = "none",  governance_id = NULL, group = FALSE, check_coordinates = FALSE)}
 }
 }

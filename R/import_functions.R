@@ -1122,7 +1122,7 @@ read_contaminants <- function(file, data_dir = ".", info) {
 #'   onwards), United Kingdom. All other stations are matched by coordinates.
 #' * `area`: a vector of strings containing one or more of `"OSPAR"`, `"HELCOM"`
 #'   and `"AMAP"`; this restricts the stations to those in the corresponding
-#'   convention area(s); NULL matches to all stations in the station dictionary
+#'   convention area(s); `NULL` matches to all stations in the station dictionary
 #' * `datatype`: a logical specifying whether the stations should be restricted
 #'   to those with an appropriate datatype. If `TRUE`, a contaminant measurement
 #'   in biota (for example) will only be matched to stations with
@@ -1186,7 +1186,7 @@ read_contaminants <- function(file, data_dir = ".", info) {
 #'   the station geometry. Not implemented yet, so defaults to `FALSE`.
 #'   
 #' The default values of `info$add_stations` depend on `info$purpose` as follows:  
-#' * `"AMAP"`: `list(method = "both", area = "HELCOM", 
+#' * `"AMAP"`: `list(method = "both", area = "AMAP", 
 #'   datatype = FALSE, temporal = FALSE, governance_type = "none", 
 #'   governance_id = NULL, group = FALSE, check_coordinates = FALSE)`  
 #' * `"HELCOM"`: `list(method = "both", area = "HELCOM", 
@@ -1196,7 +1196,7 @@ read_contaminants <- function(file, data_dir = ".", info) {
 #'   datatype = TRUE, temporal = TRUE, governance_type = "both", 
 #'   governance_id = c("OSPAR", "AMAP"), group = TRUE, 
 #'   check_coordinates = FALSE)`  
-#' * `"custom"`: `list(method = "name", area = "NULL", 
+#' * `"custom"`: `list(method = "name", area = NULL, 
 #'   datatype = FALSE, temporal = FALSE, governance_type = "none", 
 #'   governance_id = NULL, group = FALSE, check_coordinates = FALSE)`  
 #'
