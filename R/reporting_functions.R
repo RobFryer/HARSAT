@@ -125,7 +125,7 @@ ctsm_summary_overview <- function(
   
   # order assessment so that it is compatible with timeSeries - 
   # need to resolve this
-  
+
   assessment <- assessment[row.names(timeSeries)]
   
   summaryList <- sapply(
@@ -265,36 +265,42 @@ ctsm_symbology_OSPAR <- function(summary, info, timeSeries, symbology, alpha = 0
   
   
   # adjust shape and colour for nonparametric test if nyfit <= 2 and nyall > 2
-  
-  # get the names of the variables which contain the result of the non-parametric test for each AC
+  # need to check whether the non-parametric test has been done (e.g. only 
+  #   imposex assessment) 
   
   if (!is.null(symbology)) {
+
+    # get the names of the variables which contain the result of the 
+    # non-parametric test for each AC
     
     ACbelow <- paste(AC, "below", sep = "")
     
-    wk <- summary[ACbelow]
-    wk[] <- lapply(wk, function(x) {
-      
-      ok <- !is.na(x) & goodStatus == "high"
-      if (any(ok))
-        x[ok] <- ifelse(x[ok] == "below", "above", "below")
-      x
-    })
+    if (any(ACbelow %in% names(summary))) {    
     
-    wk <- apply(wk, 1, function(x) {
+      wk <- summary[ACbelow]
+      wk[] <- lapply(wk, function(x) {
+        
+        ok <- !is.na(x) & goodStatus == "high"
+        if (any(ok))
+          x[ok] <- ifelse(x[ok] == "below", "above", "below")
+        x
+      })
       
-      if (all(is.na(x))) return(NA)
+      wk <- apply(wk, 1, function(x) {
+        
+        if (all(is.na(x))) return(NA)
+        
+        AC <- AC[!is.na(x)]
+        x <- x[!is.na(x)]
+        
+        if (any(x == "below")) classColour$below[AC[which.max(x == "below")]]
+        else classColour$above[AC[length(x)]]
+      })  
       
-      AC <- AC[!is.na(x)]
-      x <- x[!is.na(x)]
-      
-      if (any(x == "below")) classColour$below[AC[which.max(x == "below")]]
-      else classColour$above[AC[length(x)]]
-    })  
-    
-    id <- with(summary, nyfit <= 2 & nyall > 2 & !is.na(wk))
-    summary$colour[id] <- wk[id]
-    summary$shape[id] <- "small_filled_circle"
+      id <- with(summary, nyfit <= 2 & nyall > 2 & !is.na(wk))
+      summary$colour[id] <- wk[id]
+      summary$shape[id] <- "small_filled_circle"
+    }
     
   }
   
