@@ -529,6 +529,13 @@ run_control_modify <- function(control_default, control = list()) {
 
 
 
+#' Identifies functions needed for parallel processing in `run_assessment` 
+#'
+#' @param imposex A logical which, if TRUE, picks out extra functions required 
+#' for an imposex assessment; defaults to FALSE  
+#'
+#' @return A vector of character strings of function names  
+#'
 parallel_objects <- function(imposex = FALSE) {
   
   # assessment_functions.R
@@ -537,8 +544,9 @@ parallel_objects <- function(imposex = FALSE) {
   package.environment <- environment(sys.function(sys.nframe()))
   
   out <- c(
-    "negTwiceLogLik", 
     "check_convergence_lmm",
+    "initialise_assessment_summary",
+    "negTwiceLogLik", 
     objects(package.environment, pattern = "^assess_*"),
     objects(package.environment, pattern = "^get*"),
     objects(package.environment, pattern = "^ctsm*")
