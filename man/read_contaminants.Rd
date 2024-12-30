@@ -16,6 +16,11 @@ Defaults to the working directory.}
 \itemize{
 \item compartment: \code{"biota"}, \code{"sediment"} or \code{"water"}
 \item data_format: \code{"ICES"} or \code{"external"}
+}
+
+An ICES biota extraction also requires:
+\itemize{
+\item use_stage: \code{TRUE} or \code{FALSE}
 }}
 }
 \value{

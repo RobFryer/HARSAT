@@ -760,7 +760,10 @@ read_stations <- function(file, data_dir = ".", info) {
 #'   Defaults to the working directory.
 #' @param info A list containing at least the following two elements:
 #' * compartment: `"biota"`, `"sediment"` or `"water"`
-#' * data_format: `"ICES"` or `"external"`
+#' * data_format: `"ICES"` or `"external"`    
+#' 
+#' An ICES biota extraction also requires:  
+#' * use_stage: `TRUE` or `FALSE`
 #' @returns A data frame containing the contaminant data.
 #' 
 #' @export
@@ -858,6 +861,8 @@ read_contaminants <- function(file, data_dir = ".", info) {
 
     }
 
+    browser()
+    
     report_file_digest(infile)
     data <- safe_read_file(       
       infile, 
