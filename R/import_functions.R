@@ -246,19 +246,26 @@ read_data <- function(
 }
 
 
-#' Reads an input file, given a particular encoding, and possibly additional hints
+#' Reads an input file, given a particular encoding, and possibly additional 
+#' hints
 #' 
 #' @param file the file name
-#' @param header logical (default `TRUE`), whether or not a header line is expected
+#' @param header logical (default `TRUE`), whether or not a header line is 
+#' expected
 #' @param sep character (defailt `,`), field separator character
 #' @param quote character (default `"`), field quote character
 #' @param dec character (default `.`), decimal character
-#' @param fill logical (default `TRUE`), if rows have unequal lengtg, additional blank fields are added
-#' @param comment.char character (default is empty), if not empty, a comment character
-#' @param strip.white local (default `TRUE`), strips leading and trailing white space from fields
+#' @param fill logical (default `TRUE`), if rows have unequal length, additional 
+#' blank fields are added
+#' @param comment.char character (default is empty), if not empty, a comment 
+#' character
+#' @param strip.white local (default `TRUE`), strips leading and trailing white s
+#' pace from fields
 #' @param ... any additional parameters to [`utils::read.table`]
 #' @return a data frame
-safe_read_file <- function(file, header=TRUE, sep=",", quote="\"", dec=".", fill=TRUE, comment.char="", strip.white=TRUE, ...) {
+safe_read_file <- function(
+    file, header = TRUE, sep = ",", quote = "\"", dec = ".", fill = TRUE, 
+    comment.char = "", strip.white = TRUE, ...) {
 
   ## Handle Excel
   extension <- toupper(tools::file_ext(file))
@@ -334,6 +341,7 @@ control_default <- function(purpose, compartment) {
     purpose, 
     OSPAR = c("ospar_region", "ospar_subregion"),
     HELCOM = c("helcom_subbasin", "helcom_l3", "helcom_l4"),
+    AMAP = "amap_arctic_lme",
     NULL
   )
 
@@ -341,10 +349,18 @@ control_default <- function(purpose, compartment) {
     purpose, 
     OSPAR = c("OSPAR_region", "OSPAR_subregion"),
     HELCOM = c("HELCOM_subbasin", "HELCOM_L3", "HELCOM_L4"),
+    AMAP = "AMAP_arctic_lme",
     NULL
   )
   
-  region$all <- !is.null(region$id)
+  region$all <- switch(
+    purpose, 
+    OSPAR = TRUE,
+    HELCOM = TRUE,
+    AMAP = FALSE,        ## Should be set to TRUE when shape files have been
+                         ## aligned
+    !is.null(region$id) 
+  )
     
   bivalve_spawning_season <- switch(
     compartment, 
@@ -609,6 +625,61 @@ report_file_digest <- function(infile) {
 }
 
 
+#' Reads an ICES extraction
+#' 
+#' @description
+#' Utility function to read an ICES extraction (either data or stations) having
+#' specified the required column names and types. Prints a warning if required
+#' column names are missing.
+#' 
+#' @param infile The input file name
+#' @param var_id A named character vector giving the name and type (character, 
+#' integer, logical, numeric, etc.) of each column in the file; these do not 
+#' need to be in the same order as in the file.
+#' 
+#' @returns A data frame containing the input file
+#' 
+read_ICES_file <- function(infile, var_id) {
+
+  report_file_digest(infile) 
+
+  # read in first line of data to check column names
+  
+  data <- safe_read_file(infile, sep = "\t", strip.white = TRUE, nrow = 1)
+  
+  ok <- names(var_id) %in% names(data)
+  if (!all(ok)) {
+    id <- names(var_id)[!ok]
+    id <- sort(id)
+    warning(
+      "the following columns are missing from the ICES extraction: \n  ", 
+      paste(id, collapse = ", "), "\n", 
+      "  This might be because the extraction was made before 14 June 2024,",
+      " in which case\n", 
+      "  take care if working with AMAP regions",
+      call. = FALSE, 
+      immediate. = TRUE
+    )
+    var_id <- var_id[ok]
+  }
+  
+  
+  # read in full data set
+  
+  data <- safe_read_file(       
+    infile, 
+    sep = "\t",
+    # quote = "",             ## Quotes shouldn't be allowed, but disabling 
+    ## them breaks all reads
+    na.strings = c("", "NULL"), 
+    strip.white = TRUE,
+    colClasses = var_id
+  )
+
+  data
+}
+    
+  
 #' Reads station dictionary
 #'
 #' @param file A file reference for the station dictionary.
@@ -631,6 +702,7 @@ read_stations <- function(file, data_dir = ".", info) {
     var_id <- c(
       station_code = "character",
       station_country = "character", 
+      amap_arctic_lme = "character",
       helcom_subbasin = "character", 
       helcom_l3 = "character", 
       helcom_l4 = "character", 
@@ -661,16 +733,7 @@ read_stations <- function(file, data_dir = ".", info) {
       station_deprecated = "logical"
     )
     
-    report_file_digest(infile)
-    stations <- safe_read_file(
-      infile, 
-      sep = "\t",
-      quote = "",
-      na.strings = c("", "NULL"), 
-      strip.white = TRUE,
-      colClasses = var_id
-    )
-    
+    stations <- read_ICES_file(infile, var_id)
   }    
   
 
@@ -702,7 +765,7 @@ read_stations <- function(file, data_dir = ".", info) {
     # check required variables are present in data
     
     report_file_digest(infile)
-	stations <- safe_read_file(infile, strip.white = TRUE, nrows = 1)
+	  stations <- safe_read_file(infile, strip.white = TRUE, nrows = 1)
     
     ok <- required %in% names(stations)
     
@@ -718,7 +781,7 @@ read_stations <- function(file, data_dir = ".", info) {
     }
     
     
-    # read data
+    # read data 
     
     ok <- names(var_id) %in% names(stations)
     
@@ -776,15 +839,17 @@ read_contaminants <- function(file, data_dir = ".", info) {
   # read in contaminant (and biological effects) data
   
   infile <- file.path(data_dir, file)
-  cat("\nReading contaminant and effects data from:\n '", 
-      infile, "'\n", sep = "")
+  cat(
+    "\nReading contaminant and effects data from:\n '", infile, "'\n", sep = ""
+  )
 
 
   if (info$data_format == "ICES") {
 
     var_id <- c(
       country = "character",
-      mprog = "character", 
+      mprog = "character",
+      amap_arctic_lme = "character",
       helcom_subbasin = "character",     
       helcom_l3 = "character",
       helcom_l4 = "character",
@@ -836,7 +901,8 @@ read_contaminants <- function(file, data_dir = ".", info) {
       tblparamid = "integer",          
       tblsampleid = "character",
       tblspotid = "integer",
-      tbluploadid = "integer"
+      tbluploadid = "integer", 
+      casenumber = "character"
     )
 
     if (info$compartment == "biota") {
@@ -853,26 +919,16 @@ read_contaminants <- function(file, data_dir = ".", info) {
         stage = "character",
         noinp = "integer",
         bulkid = "character",
-        tblbioid = "character",
-        accessionid = "integer"
+        tblbioid = "character"
       )
 
       var_id <- c(var_id, extra)
 
     }
 
-    browser()
+    data <- read_ICES_file(infile, var_id)
     
-    report_file_digest(infile)
-    data <- safe_read_file(       
-      infile, 
-      sep = "\t",
-      # quote = "",             ## Quotes shouldn't be allowed, but disabling them breaks all reads
-      na.strings = c("", "NULL"), 
-      strip.white = TRUE,
-      colClasses = var_id
-    )
-    
+
     # add in extra required variable
     
     if (info$compartment == "biota" && info$use_stage) {
