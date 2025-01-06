@@ -1,4 +1,4 @@
-station_code,country,station_name,station_latitude,station_longitude,station_governance,AMAP_region,station_longname,station_type,waterbody_type
+station_code,country,station_name,station_latitude,station_longitude,station_governance,amap_arctic_lme,station_longname,station_type,waterbody_type
 A1,Canada,Southern Labrador Sea,56.54,-61.7,AMAP,Labrador Sea,,,
 A2,Canada,Cumberland Sound,66.15,-65.7,AMAP,Labrador Sea,,,
 A3,Canada,Southern Hudson Bay,56.54,-79.22,AMAP,Hudson Bay,,,
