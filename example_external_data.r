@@ -101,7 +101,7 @@ write_summary_table(
 
 plot_assessment(
   biota_assessment,
-  subset = species %in% "Phoca hispida",
+  subset = species %in% "Globicephala melas",
   output_dir = file.path("output", "graphics"), 
   file_type = "data",
   file_format = "png"
@@ -117,7 +117,7 @@ plot_assessment(
 
 plot_assessment(
   biota_assessment,
-  subset = station_code %in% "A1",
+  subset = station_code %in% "A902",
   output_dir = file.path("output", "graphics"), 
   file_type = "data",
   file_format = "pdf"
@@ -125,7 +125,7 @@ plot_assessment(
 
 plot_assessment(
   biota_assessment, 
-  subset = series == "A1 HG Phoca hispida LI adult",
+  subset = series == "A902 PFOS Globicephala melas LI JV",
   output_dir = file.path("output", "graphics"), 
   file_format = "pdf"
 )
