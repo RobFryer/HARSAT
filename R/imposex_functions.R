@@ -360,8 +360,9 @@ imposex.assess.index <- function(annualIndex, species, determinand, info.imposex
 
   if (diff(range(value)) == 0) {
     if (nYear > 3) {
-      summary$p_linear <- summary$p_overall <- summary$pltrend <- summary$prtrend <- 1
-      summary$ltrend <- summary$rtrend <- 0
+      summary$p_linear <- summary$p_total <- summary$p_overall_change <- 
+        summary$p_recent_change <- 1
+      summary$overall_change <- summary$recent_change <- 0
     }
     summary$meanLY <- value[1]
     summary$clLY <- value[1]
@@ -432,9 +433,11 @@ imposex.assess.index <- function(annualIndex, species, determinand, info.imposex
   output$pred <- data.frame(year = new.year, pred[c("fit", "ci.lower", "ci.upper")])
   
   if (nYear > 3) {
-    summary$p_linear <- summary$p_overall <- summary$pltrend <- summary$prtrend <- 
+    summary$p_linear <- summary$p_total <- summary$p_overall_change <- 
+      summary$p_recent_change <- 
       round(output$coefficients["year", "Pr(>|t|)"], 4)
-    summary$ltrend <- summary$rtrend <- round(output$coefficients["year", "Estimate"], 4)
+    summary$overall_change <- summary$recent_change <- 
+      round(output$coefficients["year", "Estimate"], 4)
   }
   summary$meanLY <- round(tail(pred$fit, 1), 3)
   summary$clLY <- round(tail(pred$ci.upper, 1), 3)

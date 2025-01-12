@@ -467,7 +467,7 @@ imposex_assess_clm <- function(
 
   linID <- switch(best.id[1], linear = "linear", smooth = "linear", paste(best.id[1], "mean linear"))
 
-  summary$p_linear <- summary$p_overall <- with(fit, {
+  summary$p_linear <- summary$p_total <- with(fit, {
     diff.lik <- anova[linID, "twiceLogLik"] - anova["mean", "twiceLogLik"]
     dfFixed <- 1
     Fstat <- (diff.lik / dfFixed) / disp
@@ -484,7 +484,7 @@ imposex_assess_clm <- function(
       pf(Fstat, dfFixed, dfResid, lower.tail = FALSE)
     })
     
-    summary$p_overall <- with(fit, {
+    summary$p_total <- with(fit, {
       diff.lik <- twiceLogLik - anova["mean", "twiceLogLik"]
       dfFixed <- pFixed - 1
       Fstat <- (diff.lik / dfFixed) / disp
@@ -495,19 +495,20 @@ imposex_assess_clm <- function(
       
 
 
-  summary$ltrend <- with(output$contrasts["whole", ], estimate / (end - start))
+  summary$overall_change <- with(output$contrasts["whole", ], estimate / (end - start))
        
-  # for trends, use pltrend (from likelihood ratio test) if method is linear or changepoint linear, 
-  # because a better test - really need to go into profile likelihood territory here!
+  # for trends, use p_overall_change (from likelihood ratio test) if method is 
+  # linear or changepoint linear because a better test
+  # really need to go into profile likelihood territory here!
        
   if (grepl("linear", bestFit)) 
-    summary$pltrend <- summary$prtrend <- summary$p_linear    
+    summary$p_overall_change <- summary$p_recent_change <- summary$p_linear    
   else {
-    summary$pltrend <- output$contrasts["whole", "p"]
-    summary$prtrend <- output$contrasts["recent", "p"]
+    summary$p_overall_change <- output$contrasts["whole", "p"]
+    summary$p_recent_change <- output$contrasts["recent", "p"]
   }
   
-  summary$rtrend <- with(output$contrasts["recent", ], estimate / (end - start))
+  summary$recent_change <- with(output$contrasts["recent", ], estimate / (end - start))
 
   summary$meanLY <- tail(output$pred$fit, 1)
   summary$clLY <- tail(output$pred$ci.upper, 1)
@@ -520,13 +521,13 @@ imposex_assess_clm <- function(
     if (grepl("smooth", bestFit))
       p_nonlinear <- round(p_nonlinear, 4)
     p_linear <- round(p_linear, 4)
-    p_overall <- round(p_overall, 4)
+    p_total <- round(p_total, 4)
 
-    pltrend <- round(pltrend, 4)
-    prtrend <- round(prtrend, 4)
+    p_overall_change <- round(p_overall_change, 4)
+    p_recent_change <- round(p_recent_change, 4)
     
-    ltrend <- round(ltrend, 4)
-    rtrend <- round(rtrend, 4)
+    overall_change <- round(overall_change, 4)
+    recent_change <- round(recent_change, 4)
   })
   
 

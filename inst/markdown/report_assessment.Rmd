@@ -890,8 +890,8 @@ wk_recent <- info$max_year - info$recent.trend + 1
 
 
 change_txt <- function(type = c("whole", "recent")) {
-  p <- switch(type, whole = wk$pltrend, wk$prtrend)
-  trend <- switch(type, whole = wk$ltrend, wk$rtrend)
+  p <- switch(type, whole = wk$p_overall_change, wk$p_recent_change)
+  trend <- switch(type, whole = wk$overall_change, wk$recent_change)
   paste0(
     stringr::str_to_sentence(txt_concentrations),
     " at the end of the time series were ",
@@ -910,11 +910,11 @@ change_txt <- function(type = c("whole", "recent")) {
 }
 
 
-if (wk$p_overall >= 0.05) {
+if (wk$p_total >= 0.05) {
 
   trend_description <- paste0(
     "There is no significant temporal trend in the time series ",
-    format_p(wk$p_overall),
+    format_p(wk$p_total),
     "."
   )
 
@@ -924,7 +924,7 @@ if (wk$p_overall >= 0.05) {
     stop("not coded for ", info$distribution, " distribution")
   }
 
-  ltrend_txt1 <- switch(
+  otrendtxt1 <- switch(
     info$distribution,
     lognormal = "log-linear ",
     normal = "",
@@ -932,24 +932,24 @@ if (wk$p_overall >= 0.05) {
     survival = "log-linear"
   )
 
-  ltrend_txt2 <- paste0(
+  otrendtxt2 <- paste0(
     "There is a significant ",
-    ltrend_txt1,
+    otrendtxt1,
     "trend in the time series ",
     format_p(wk$p_linear),
     ". "
   )
 
-  ltrend_txt3 <- switch(
+  otrendtxt3 <- switch(
     info$distribution,
     lognormal = paste0(
       " by an estimated ",
-      round(100 * (exp(wk$ltrend / 100) - 1), 1),
+      round(100 * (exp(wk$overall_change / 100) - 1), 1),
       "% per year over the course of the time series."
     ),
     normal = paste(
       " by an estimated ",
-      format(wk$ltrend, digits = 2, nsmall = 0), info$unit_text,
+      format(wk$overall_change, digits = 2, nsmall = 0), info$unit_text,
       "per year over the course of the time series."
     ),
     multinomial = paste(
@@ -957,13 +957,13 @@ if (wk$p_overall >= 0.05) {
       if (is_AC && "EAC" %in% AC_id) paste0(
         " Formally, the odds of an individual exceeding the EAC in one year",
         " relative to the previous year is ",
-        format(exp(wk$ltrend), digits = 2, nsmall = 0),
+        format(exp(wk$overall_change), digits = 2, nsmall = 0),
         "."
       )
     ),
     survival = paste0(
       " by an estimated ",
-      round(100 * (exp(wk$ltrend / 100) - 1), 1),
+      round(100 * (exp(wk$overall_change / 100) - 1), 1),
       "% per year over the course of the time series."
     )
   )
@@ -974,11 +974,11 @@ if (wk$p_overall >= 0.05) {
     # not a change point model (currently only imposex)
 
     trend_description <- paste0(
-      ltrend_txt2,
+      otrendtxt2,
       stringr::str_to_sentence(txt_concentrations),
       " have ",
-      if (wk$ltrend > 0) "increased" else "decreased",
-      ltrend_txt3
+      if (wk$overall_change > 0) "increased" else "decreased",
+      otrendtxt3
     )
 
     if (info$good.status == "high") {
@@ -987,7 +987,7 @@ if (wk$p_overall >= 0.05) {
         "Higher values of",
         info$det_name,
         "indicate healthier organisms, so the trend suggests a",
-        if (wk$ltrend > 0) "improving" else "deteriorating",
+        if (wk$overall_change > 0) "improving" else "deteriorating",
         "situation."
       )
     }
@@ -998,11 +998,11 @@ if (wk$p_overall >= 0.05) {
 
     trend_description <- paste0(
       "There is a significant trend in the time series ",
-      format_p(wk$p_overall),
+      format_p(wk$p_total),
       " with levels stable until ",
       modelID,
       " and then ",
-      if (wk$ltrend > 0) "increasing" else "decreasing",
+      if (wk$overall_change > 0) "increasing" else "decreasing",
       " linear logistically. ",
       change_txt("whole"),
       if (assessment$contrasts["whole", "start"] < wk_recent) change_txt("recent")
@@ -1018,7 +1018,7 @@ if (wk$p_overall >= 0.05) {
 
     trend_description <- paste0(
       "There is a significant trend in the time series ",
-      format_p(wk$p_overall),
+      format_p(wk$p_total),
       ". The trend is nonlinear ",
       format_p(wk$p_nonlinear),
       " so the shape of the trend must be assessed visually. ",
@@ -1032,7 +1032,7 @@ if (wk$p_overall >= 0.05) {
 
     trend_description <- paste0(
       "There is a significant temporal trend in the time series ",
-      format_p(wk$p_overall),
+      format_p(wk$p_total),
       ". The trend is nonlinear ",
       format_p(wk$p_nonlinear),
       " with levels stable until ",
@@ -1049,11 +1049,11 @@ if (wk$p_overall >= 0.05) {
     trend_description <- paste(
       trend_description,
       "Note that ",
-      if (wk$ltrend > 0) "higher" else "lower",
+      if (wk$overall_change > 0) "higher" else "lower",
       "values of",
       info$det_name,
       "indicate",
-      if (wk$ltrend > 0) "healthier"else "less healthy",
+      if (wk$overall_change > 0) "healthier"else "less healthy",
       "organisms."
     )
   }
@@ -1282,7 +1282,7 @@ rm(list = intersect(
     "good_status", "group_id", "HQS_id",
     "id", "info", "info_multi", "intro_AMAP", "intro_txt",
     "is_AC", "is_BAC", "is_below", "is_EAC", "is_HQS", "is_normalised", "is_pred",
-    "is_ratio", "is_lognormal", "ltrend_txt",
+    "is_ratio", "is_lognormal", "otrendtxt",
     "nyear", "nyear_ok", "ok", "p_txt", "p_value", "page_title", "pred", "rv",
     "species_id",
     "status_description", "status_ok", "status_parametric", "status_nonparametric",
