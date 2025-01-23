@@ -428,7 +428,8 @@ ctsm.web.AC <- function(assessment_ob, classification) {
 #'
 #' @export
 write_summary_table <- function(
-  assessment_obj, output_file = NULL, output_dir = ".", export = TRUE,
+  assessment_obj, 
+  output_file = NULL, output_dir = ".", export = TRUE,
   collapse_AC = NULL, extra_output = NULL, 
   symbology = NULL, 
   determinandGroups = NULL, append = FALSE) {
@@ -793,15 +794,51 @@ write_summary_table <- function(
   }
   
 
-  # write summary to output_file or return summary object
-    
-  if (export) {
-    readr::write_excel_csv(summary, output_file, na = "", append = append)
-    return(invisible())
-  } else {
+  # results
+  
+  # if export = FALSE return summary data frame
+  
+  if (!export) {
     return(summary)
   }
     
+  
+  # otherwise write to output_file
+  
+  # headers on a new file aren't created if append = TRUE
+  
+  if (!file.exists(output_file)) {
+    append <- FALSE
+  }
+  
+  # if append = TRUE check that column names are identical and warn if there
+  # are series that are going to be repeated
+  
+  if (append) {
+    old_summary <- safe_read_file(output_file)
+    if (!identical(names(old_summary), names(summary))) {
+      stop(
+        "\nCannot append because the names of the new summary output differ ",
+        "from those of the\n", 
+        "existing summary file.",
+        call. = FALSE
+      )
+    }
+    
+    if (any(summary$series %in% old_summary$series)) {
+      warning(
+        "Some time series in the new summary output are already reported in ",
+        "the existing\n", 
+        "summary file: you should check what is going on.",
+        call. = FALSE
+      )
+    }
+  }
+  
+  
+  
+  readr::write_excel_csv(summary, output_file, na = "", append = append)
+  return(invisible())
 }
 
 
