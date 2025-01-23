@@ -1042,18 +1042,18 @@ assess_lmm <- function(
     
     if (output$method == "smooth") {
       
-      p_nonlinear <- with(output, {
+      p_nonlinear_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["linear", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
       })
 
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
 
-      p_total <- with(output, {
+      p_overall_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
@@ -1063,19 +1063,19 @@ assess_lmm <- function(
       
     if (output$method == "linear") {
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_total <- p_linear
+      p_overall_trend <- p_linear_trend
       
     }
     
     if (output$method %in% c("linear", "smooth")) {
       
       # p_overall_change
-      # method = "linear" use p_linear (from likelihood ratio test)  
+      # method = "linear" use p_linear_trend (from likelihood ratio test)  
       # method = "smooth" use p from the Wald test in contrasts 
       # for linear model, likelihood ratio test is a better test (fewer 
       #   approximations) than the Wald test
@@ -1083,18 +1083,18 @@ assess_lmm <- function(
       #   territory (future enhancement) 
       
       # p_recent_change
-      # same approach; however p_linear could be misleading when the years at 
+      # same approach; however p_linear_trend could be misleading when the years at 
       #   the end of the time series are all censored values and a flat model is 
-      #   fitted; the estimate of recent_change is shrunk to reflect this, but p_linear 
-      #   might be misleadingly significant; something to think about in the 
-      #   future
+      #   fitted; the estimate of recent_change is shrunk to reflect this, but 
+      #   p_linear_trend might be misleadingly significant; something to think 
+      #   about in the future
       # however, there is a pathological case when all the fitted values in the 
       #   recent period have the same value; recent_change is zero, and yet can still be 
-      #   significant based on p_linear even though there are no data to support 
+      #   significant based on p_linear_trend even though there are no data to support 
       #   this; in this case use p from the Wald test (which is unity)
       
       if (output$method == "linear") {
-        p_overall_change <- p_linear
+        p_overall_change <- p_linear_trend
       } else {
         p_overall_change <- output$contrasts["whole", "p"]
       }
@@ -1107,7 +1107,7 @@ assess_lmm <- function(
           output$method == "linear" & 
           max(data$year[data$censoring %in% ""]) > start_recent
         ) {
-          p_recent_change <- p_linear
+          p_recent_change <- p_linear_trend
         } else {
           p_recent_change <- output$contrasts["recent", "p"]
         }          
@@ -1217,9 +1217,9 @@ assess_lmm <- function(
   
     # and round for ease of interpretation
     
-    p_nonlinear <- round(p_nonlinear, 4)
-    p_linear <- round(p_linear, 4)
-    p_total <- round(p_total, 4)
+    p_nonlinear_trend <- round(p_nonlinear_trend, 4)
+    p_linear_trend <- round(p_linear_trend, 4)
+    p_overall_trend <- round(p_overall_trend, 4)
     p_overall_change <- round(p_overall_change, 4)
     p_recent_change <- round(p_recent_change, 4)
     
@@ -1703,9 +1703,9 @@ initialise_assessment_summary <- function(
     firstYearAll = firstYearAll, 
     firstYearFit = min(year), 
     lastyear = max(year),
-    p_nonlinear = NA_real_, 
-    p_linear = NA_real_, 
-    p_total = NA_real_, 
+    p_nonlinear_trend = NA_real_, 
+    p_linear_trend = NA_real_, 
+    p_overall_trend = NA_real_, 
     p_overall_change = NA_real_, 
     overall_change = NA_real_, 
     p_recent_change = NA_real_, 
@@ -2076,18 +2076,18 @@ assess_survival <- function(
     
     if (output$method == "smooth") {
       
-      p_nonlinear <- with(output, {
+      p_nonlinear_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["linear", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
       })
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_total <- with(output, {
+      p_overall_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
@@ -2097,12 +2097,12 @@ assess_survival <- function(
     
     if (output$method == "linear") {
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_total <- p_linear
+      p_overall_trend <- p_linear_trend
       
     }
     
@@ -2113,7 +2113,7 @@ assess_survival <- function(
       # really need to go into profile likelihood territory here!
       
       p_overall_change <- if (output$method == "linear") {
-        p_linear
+        p_linear_trend
       } else {
         output$contrasts["whole", "p"]
       }
@@ -2122,7 +2122,7 @@ assess_survival <- function(
       
       if ("recent" %in% row.names(output$contrasts)) {
         p_recent_change <- if (output$method == "linear") {
-          p_linear
+          p_linear_trend
         } else {
           with(output$contrasts["recent", ], p)
         }
@@ -2195,9 +2195,9 @@ assess_survival <- function(
     
     # and round for ease of interpretation
     
-    p_nonlinear <- round(p_nonlinear, 4)
-    p_linear <- round(p_linear, 4)
-    p_total <- round(p_total, 4)
+    p_nonlinear_trend <- round(p_nonlinear_trend, 4)
+    p_linear_trend <- round(p_linear_trend, 4)
+    p_overall_trend <- round(p_overall_trend, 4)
     p_overall_change <- round(p_overall_change, 4)
     p_recent_change <- round(p_recent_change, 4)
     
@@ -2539,18 +2539,18 @@ assess_beta <- function(
     
     if (output$method == "smooth") {
       
-      p_nonlinear <- with(output, {
+      p_nonlinear_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["linear", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
       })
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_total <- with(output, {
+      p_overall_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
@@ -2560,12 +2560,12 @@ assess_beta <- function(
     
     if (output$method == "linear") {
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_total <- p_linear
+      p_overall_trend <- p_linear_trend
       
     }
     
@@ -2576,7 +2576,7 @@ assess_beta <- function(
       # really need to go into profile likelihood territory here!
       
       p_overall_change <- if (output$method == "linear") {
-        p_linear
+        p_linear_trend
       } else {
         output$contrasts["whole", "p"]
       }
@@ -2585,7 +2585,7 @@ assess_beta <- function(
       
       if ("recent" %in% row.names(output$contrasts)) {
         p_recent_change <- if (output$method == "linear") {
-          p_linear
+          p_linear_trend
         } else {
           with(output$contrasts["recent", ], p)
         }
@@ -2672,9 +2672,9 @@ assess_beta <- function(
     
     # and round for ease of interpretation
     
-    p_nonlinear <- round(p_nonlinear, 4)
-    p_linear <- round(p_linear, 4)
-    p_total <- round(p_total, 4)
+    p_nonlinear_trend <- round(p_nonlinear_trend, 4)
+    p_linear_trend <- round(p_linear_trend, 4)
+    p_overall_trend <- round(p_overall_trend, 4)
     p_overall_change <- round(p_overall_change, 4)
     p_recent_change <- round(p_recent_change, 4)
     
@@ -2940,18 +2940,18 @@ assess_negativebinomial <- function(
     
     if (output$method == "smooth") {
       
-      p_nonlinear <- with(output, {
+      p_nonlinear_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["linear", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
       })
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_total <- with(output, {
+      p_overall_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
@@ -2961,12 +2961,12 @@ assess_negativebinomial <- function(
     
     if (output$method == "linear") {
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_total <- p_linear
+      p_overall_trend <- p_linear_trend
       
     }
     
@@ -2977,7 +2977,7 @@ assess_negativebinomial <- function(
       # really need to go into profile likelihood territory here!
       
       p_overall_change <- if (output$method == "linear") {
-        p_linear
+        p_linear_trend
       } else {
         output$contrasts["whole", "p"]
       }
@@ -2986,7 +2986,7 @@ assess_negativebinomial <- function(
       
       if ("recent" %in% row.names(output$contrasts)) {
         p_recent_change <- if (output$method == "linear") {
-          p_linear
+          p_linear_trend
         } else {
           with(output$contrasts["recent", ], p)
         }
@@ -3079,9 +3079,9 @@ assess_negativebinomial <- function(
     
     # and round for ease of interpretation
     
-    p_nonlinear <- round(p_nonlinear, 4)
-    p_linear <- round(p_linear, 4)
-    p_total <- round(p_total, 4)
+    p_nonlinear_trend <- round(p_nonlinear_trend, 4)
+    p_linear_trend <- round(p_linear_trend, 4)
+    p_overall_trend <- round(p_overall_trend, 4)
     p_overall_change <- round(p_overall_change, 4)
     p_recent_change <- round(p_recent_change, 4)
     

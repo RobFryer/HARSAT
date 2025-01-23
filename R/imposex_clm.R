@@ -467,7 +467,7 @@ imposex_assess_clm <- function(
 
   linID <- switch(best.id[1], linear = "linear", smooth = "linear", paste(best.id[1], "mean linear"))
 
-  summary$p_linear <- summary$p_total <- with(fit, {
+  summary$p_linear_trend <- summary$p_overall_trend <- with(fit, {
     diff.lik <- anova[linID, "twiceLogLik"] - anova["mean", "twiceLogLik"]
     dfFixed <- 1
     Fstat <- (diff.lik / dfFixed) / disp
@@ -477,14 +477,14 @@ imposex_assess_clm <- function(
   
   if (grepl("smooth", bestFit)) {
   
-    summary$p_nonlinear <- with(fit, {
+    summary$p_nonlinear_trend <- with(fit, {
       diff.lik <- twiceLogLik - anova[linID, "twiceLogLik"]
       dfFixed <- pFixed - 2
       Fstat <- (diff.lik / dfFixed) / disp
       pf(Fstat, dfFixed, dfResid, lower.tail = FALSE)
     })
     
-    summary$p_total <- with(fit, {
+    summary$p_overall_trend <- with(fit, {
       diff.lik <- twiceLogLik - anova["mean", "twiceLogLik"]
       dfFixed <- pFixed - 1
       Fstat <- (diff.lik / dfFixed) / disp
@@ -502,7 +502,7 @@ imposex_assess_clm <- function(
   # really need to go into profile likelihood territory here!
        
   if (grepl("linear", bestFit)) 
-    summary$p_overall_change <- summary$p_recent_change <- summary$p_linear    
+    summary$p_overall_change <- summary$p_recent_change <- summary$p_linear_trend    
   else {
     summary$p_overall_change <- output$contrasts["whole", "p"]
     summary$p_recent_change <- output$contrasts["recent", "p"]
@@ -519,9 +519,9 @@ imposex_assess_clm <- function(
     # round for ease of interpretation
     
     if (grepl("smooth", bestFit))
-      p_nonlinear <- round(p_nonlinear, 4)
-    p_linear <- round(p_linear, 4)
-    p_total <- round(p_total, 4)
+      p_nonlinear_trend <- round(p_nonlinear_trend, 4)
+    p_linear_trend <- round(p_linear_trend, 4)
+    p_overall_trend <- round(p_overall_trend, 4)
 
     p_overall_change <- round(p_overall_change, 4)
     p_recent_change <- round(p_recent_change, 4)

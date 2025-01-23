@@ -910,15 +910,15 @@ change_txt <- function(type = c("whole", "recent")) {
 }
 
 
-if (wk$p_total >= 0.05) {
+if (wk$p_overall_trend >= 0.05) {
 
   trend_description <- paste0(
     "There is no significant temporal trend in the time series ",
-    format_p(wk$p_total),
+    format_p(wk$p_overall_trend),
     "."
   )
 
-} else if (is.na(wk$p_nonlinear)) {
+} else if (is.na(wk$p_nonlinear_trend)) {
 
   if (!info$distribution %in% c("lognormal", "normal", "multinomial", "survival")) {
     stop("not coded for ", info$distribution, " distribution")
@@ -936,7 +936,7 @@ if (wk$p_total >= 0.05) {
     "There is a significant ",
     otrendtxt1,
     "trend in the time series ",
-    format_p(wk$p_linear),
+    format_p(wk$p_linear_trend),
     ". "
   )
 
@@ -998,7 +998,7 @@ if (wk$p_total >= 0.05) {
 
     trend_description <- paste0(
       "There is a significant trend in the time series ",
-      format_p(wk$p_total),
+      format_p(wk$p_overall_trend),
       " with levels stable until ",
       modelID,
       " and then ",
@@ -1018,9 +1018,9 @@ if (wk$p_total >= 0.05) {
 
     trend_description <- paste0(
       "There is a significant trend in the time series ",
-      format_p(wk$p_total),
+      format_p(wk$p_overall_trend),
       ". The trend is nonlinear ",
-      format_p(wk$p_nonlinear),
+      format_p(wk$p_nonlinear_trend),
       " so the shape of the trend must be assessed visually. ",
       change_txt("whole"),
       if (assessment$contrasts["whole", "start"] < wk_recent) change_txt("recent")
@@ -1032,9 +1032,9 @@ if (wk$p_total >= 0.05) {
 
     trend_description <- paste0(
       "There is a significant temporal trend in the time series ",
-      format_p(wk$p_total),
+      format_p(wk$p_overall_trend),
       ". The trend is nonlinear ",
-      format_p(wk$p_nonlinear),
+      format_p(wk$p_nonlinear_trend),
       " with levels stable until ",
       modelID,
       " followed by a nonlinear pattern of change which must be assessed visually. ",
