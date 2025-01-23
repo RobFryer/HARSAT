@@ -184,20 +184,22 @@ ctsm_symbology_OSPAR <- function(summary, info, timeSeries, symbology, alpha = 0
     
     shape <- character(nrow(summary))
     
-    # trend symbols: a trend is estimated if pltrend is present - default shape is a large filled circle
+    # trend symbols 
+    # a trend is estimated if p_overall_change is present 
+    # default shape is a large filled circle
     
-    trendFit <- !is.na(pltrend)
+    trendFit <- !is.na(p_overall_change)
     shape[trendFit] <- "large_filled_circle"
     
-    # show a significant trend based on prtrend 
-    # NB prtrend might not exist even if pltrend does, because there are too few years of data in the
-    # recent window
+    # show a significant trend based on p_recent_change 
+    # note p_recent_change might not exist even if p_overall_change does, because 
+    # there are too few years of data in the recent window
     
     # isImposex <- timeSeries$detGroup %in% "Imposex"
     
-    isTrend <- !is.na(prtrend) & prtrend < alpha
-    upTrend <- isTrend & rtrend > 0
-    downTrend <- isTrend & rtrend < 0
+    isTrend <- !is.na(p_recent_change) & p_recent_change < alpha
+    upTrend <- isTrend & recent_change > 0
+    downTrend <- isTrend & recent_change < 0
     
     shape[downTrend] <- "downward_triangle"
     shape[upTrend] <- "upward_triangle"
@@ -669,10 +671,6 @@ write_summary_table <- function(
     first_year_all = "firstYearAll",
     first_year_fit = "firstYearFit",
     last_year = "lastyear",
-    p_linear_trend = "pltrend",
-    linear_trend = "ltrend",
-    p_recent_trend = "prtrend",
-    recent_trend = "rtrend",
     detectable_trend = "dtrend",
     mean_last_year = "meanLY",
     climit_last_year = "clLY"
