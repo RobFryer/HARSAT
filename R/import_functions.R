@@ -1001,10 +1001,6 @@ read_contaminants <- function(file, data_dir = ".", info) {
       required <- c(required, "species")
     }
 
-  }
-  
-
-  if (info$data_format == "external") {  
 
     # check required variables are present in data
 
@@ -1036,12 +1032,8 @@ read_contaminants <- function(file, data_dir = ".", info) {
       colClasses = var_id[ok]
     )
     
-  }
-  
 
-  # create missing (non-required) variables 
-  
-  if (info$data_format == "external") {
+    # create missing (non-required) variables 
   
     ok1 <- "uncertainty" %in% names(data)
     ok2 <- "unit_uncertainty" %in% names(data)
@@ -1089,54 +1081,51 @@ read_contaminants <- function(file, data_dir = ".", info) {
     if (!all(names(var_id) %in% names(data))) {
       stop("coding error - seek help from HARSAT team")
     }
-      
+
+    names(data) <- tolower(names(data))  
   }  
   
 
+  # additional validations: should be only required for external data, but you 
+  # never know what folk might have done to an ICES extraction
   
-  # additional validations (for external data)
+  # every valid `uncertainty` must have a valid `unit_uncertainty`
+    
+  uncertainty_present <- which(complete.cases(data$uncertainty))
+  uncertainty_present_valid_units <- 
+    data$unit_uncertainty[uncertainty_present] %in% c("%", "U2", "SD")
+  if (! all(uncertainty_present_valid_units)) {
+    stop(
+      "\nMissing or invalid uncertainty units for specified uncertainty values.",
+      "\nPlease check that all uncertainty values have a valid unit: %, U2, or SD",
+      call. = FALSE
+    )
+  }
+
   
-  if (info$data_format == "external") { 
-  
-    # every valid `uncertainty` must have a valid `unit_uncertainty`
-    uncertainty_present <- which(complete.cases(data$uncertainty))
-    uncertainty_present_valid_units <- 
-      data$unit_uncertainty[uncertainty_present] %in% c("%", "U2", "SD")
-    if (! all(uncertainty_present_valid_units)) {
+  # no missing sample identifier 
+  # can only check this for external data here because the sample identifier
+  # for ICES data is created later in finalise_data
+  # for future, could restructure read_stations, read_contaminants, 
+  # finalise_data and finalise_stations so that all the required processing is 
+  # done on the ICES extraction in one go, and then data checks can be applied
+  # to the data, whichever format they have arrived in
+
+  if (info$data_format == "external") {
+    
+    if (any(is.na(data$sample))) {
       stop(
-        "Missing or invalid uncertainty units for specified uncertainty values. ",
-        "Please check that all uncertainty values have a valid unit: %, U2, or SD"
+        "\nNo missing values are allowed in the 'sample' column of the ",
+        "contaminants file.", 
+        call. = FALSE
       )
     }
-  }    
-  
-  
-  # check regional identifiers are in the extraction 
-
-  # if (info$data_format == "ICES_old") {
-  #   
-  #   pos <- names(data) %in% info$region$id
-  #   if (sum(pos) != length(info$region$id)) {
-  #     stop("not all regional identifiers are in the data extraction")
-  #   }
-  # 
-  #   names(data)[!pos] <- tolower(names(data)[!pos])     # just in case!
-  #   
-  # } else 
-  
-  if (info$data_format == "external") {
-    names(data) <- tolower(names(data))  
+    
+    
+    
+    
   }
-  
-  
-  # create more useful names
-  # for biota, tblsampleid is the species, tblbioid gives the subsample (individual) 
-  # which with matrix gives the unique sample id
-  # for sediment, tblsampleid and matrix give the unique sample id
-  # to streamline, could make sample = tblbioid (biota) or tblsampleid (sediment)
-
-  
-  # variables common across purpose and compartments
+    
   
 
   # ensure further consistency
@@ -2334,7 +2323,6 @@ tidy_contaminants <- function(data, info) {
   }
   
 
-
   # add required variables 'replicate' and 'pargroup' (not present in external data)
   
   # have removed 'pargroup' for now as it can result in a lot of unrecognised 
@@ -2345,7 +2333,35 @@ tidy_contaminants <- function(data, info) {
     # data$pargroup <- ctsm_get_info(info$determinand, data$determinand, "pargroup")
   }
   
+  
+  # check that sample identifiers are not replicated across years, stations or 
+  # species - should only be an issue for external data
+  
+  var_id <- c("year", "station_code", "sample")
+  if (info$compartment == "biota") {
+    var_id <- append(var_id, "species", after = 2)
+  }
       
+  wk <- dplyr::distinct(data, dplyr::pick(var_id))
+  if (any(duplicated(wk$sample))) {
+    warning(
+      "The same sample identifier has been used in different years, or for ",
+      "different", 
+      "\nstations, or for different species (biota).", 
+      "\nA unique sample identifier should be used for each sample.",
+      "\nAn attempt has been made to create unique sample identifiers in the ",
+      "code, but it would", 
+      "\nbe better to do this yourself in the original contaminants file to ",
+      "ensure everything is", 
+      "\nmatched up correctly.",
+      call. = FALSE
+    )
+
+    # concatenate year, station_code, species and sample to give new sample
+    
+    data <- tidyr::unite(data, "sample", dplyr::all_of(var_id), remove = FALSE) 
+  }
+  
   data$sample <- as.character(data$sample)
 
   
@@ -2362,7 +2378,6 @@ tidy_contaminants <- function(data, info) {
   )
   
   data <- data[intersect(var_id, names(data))]
-  
   
   data
 }
