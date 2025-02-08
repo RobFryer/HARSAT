@@ -30,11 +30,64 @@
 #'   argument will be generalised in the near future, so expect it to change.
 #' @param control `r lifecycle::badge("experimental")` A list of control 
 #'   parameters that allow the user to modify the way the assessment is run. 
-#'   At present, these only include parameters involved in post-hoc power 
-#'   calculations, but it is intended to move other structures such as 
-#'   `recent_trend` here. See details (which need to be written).
+#'   These currently include parameters for post-hoc power calculations and 
+#'   for the calculation of the 'recent_change' (in addition to the 
+#'   `recent_trend` argument above). See details.
 #' @param ... Extra arguments which are passed to assessment_engine. See
 #'   details (which need to be written).
+#'   
+#' @details
+#' 
+#'   ## Control parameters
+#'   
+#'   Some aspects of the model output are controlled using parameters which 
+#'   can be modified using the `control` argument. The default parameter list 
+#'   is described below. The `control` argument only needs to specify any  
+#'   changes. For example, to change the target power from 90% (default) to 80%, 
+#'   use 
+#'   
+#'   `control = list(power = list(target_power = 80))`
+#'    
+#'   The default parameters are a list with the following components:
+#'   
+#'   `power` 
+#'   
+#'   A list with the following components (all expressed as 
+#'   percentages):  
+#'   * `target_power` default = 90
+#'   * `target_trend` default = 5
+#'   * `size` default = 5  
+#'   
+#'   These affect the post-how power calculations. Power is currently only 
+#'   calculated for time series of log-normally distributed data, which is why 
+#'   the trend is expressed as a percentage.
+#'   
+#'   <br>
+#'   <br>
+#'   
+#'   `recent_change` 
+#'   
+#'   A list with the following components:  
+#'   - `n_year_fit` default = 5L
+#'   - `n_year_positive` default = 5L
+#'   
+#'   A recent change will only be computed if there are at least `n_year_fit`
+#'   years of data in the recent period, of which at least `n_year_positive` 
+#'   contain at least one non-censored measurement. This only affects 
+#'   normally or log-normally distributed data.
+#'   
+#'   The default values of 5L mirror the requirements for calculating the 
+#'   change over the whole time series.   
+#'   
+#'   Note that in harsat versions <= 1.0.2, `n_year_positive` was hard-wired to 
+#'   0L which occasionally led to pathological behaviour in the estimation of 
+#'   the recent change. To replicate previous outputs as closely as possible, 
+#'   set `n_year_positive` to 2L (the smallest value allowed to avoid any 
+#'   pathologial behavour). The change is only likely to affect long time series
+#'   with infrequent sampling where most measurements in the recent period are 
+#'   censored. 
+#'   
+#'   
 #' @export
 run_assessment <- function(
   ctsm_ob, 
@@ -420,7 +473,8 @@ assessment_engine <- function(ctsm.ob, series_id, parallel = FALSE, ...) {
         recent.trend = info$recent.trend, 
         distribution = distribution, 
         good.status = good.status,
-        power = info$power
+        power = info$power, 
+        control_recent_change = info$recent_change
       )
       
       args.list <- c(args.list, list(...))
@@ -458,6 +512,13 @@ assessment_engine <- function(ctsm.ob, series_id, parallel = FALSE, ...) {
 #'   - `size` default = 5%  
 #'   The power calculations are currently only applied to log-normally 
 #'   distributed data, which is why the trend is expressed as a percentage.
+#' * `recent_change` A list with the following components:  
+#'   - `n_year_fit` default = 5L
+#'   - `n_year_positive` default = 5L
+#'   A recent change will only be computed if there are at least `n_year_fit`
+#'   years of data in the recent period, of which at least `n_year_positive` 
+#'   contain at least one non-censored measurement. This only affects 
+#'   normally or log-normally distributed data.
 #'
 run_control_default <- function() {
 
@@ -468,11 +529,14 @@ run_control_default <- function() {
     target_trend = 5,
     size = 5
   )
-  
-  list(power = power)  
+
+  recent_change = list(
+    n_year_fit = 5L,
+    n_year_positive = 5L
+  )  
+    
+  list(power = power, recent_change = recent_change)  
 }
-
-
 
 
 
@@ -496,29 +560,52 @@ run_control_modify <- function(control_default, control = list()) {
 
   if (control$power$target_power <= control$power$size) {
     stop(
-      "error in target_power component of control$power:\n", 
+      "\nerror in target_power component of control$power:\n", 
       "target_power must be greater than size"
     )
   }
     
   if (control$power$size <= 0 | control$power$size >= 100) {
     stop(
-      "error in size component of control$power:\n", 
+      "\nerror in size component of control$power:\n", 
       "size (%) must be greater than 0 and less than 100"
     )
   }
   
   if (control$power$target_power >= 100) {
     stop(
-      "error in target_power component of control$power:\n", 
+      "\nerror in target_power component of control$power:\n", 
       "target_power must be less that 100%"
     )
   }
 
   if (control$power$target_trend <= -100) {
     stop(
-      "error in target_trend component of control$power:\n", 
+      "\nerror in target_trend component of control$power:\n", 
       "target_trend must be greater than -100%"
+    )
+  }
+  
+  if (control$recent_change$n_year_positive > control$recent_change$n_year_fit) {
+    stop(
+      "\ninconsistency in control$recent_change:\n",
+      "number of years with non-censored data can't be greater than the number\n", 
+      "of years of data",
+      call. = FALSE
+    )
+  }
+  
+  if (control$recent_change$n_year_fit < 2L) {
+    stop(
+      "\nerror in n_year_fit component of control$recent_change:\n",
+      "n_year_fit must be at least 2"
+    )
+  }
+  
+  if (control$recent_change$n_year_positive < 2L) {
+    stop(
+      "\nerror in n_year_positive component of control$recent_change:\n",
+      "n_year_positive must be at least 2"
     )
   }
   
@@ -750,8 +837,8 @@ get_index_weighted_mean <- function(data, determinand) {
 
 assess_lmm <- function(
     data, annualIndex, AC, recent.years, determinand, max.year, 
-    recent.trend = 20, distribution, good.status, choose_model, 
-    power, ...) {
+    recent.trend = 20L, distribution, good.status, choose_model, 
+    power, control_recent_change, ...) {
 
   # silence non-standard evaluation warnings
   year <- NULL
@@ -895,7 +982,7 @@ assess_lmm <- function(
   # nyearPos >= 5 linear or smooth
   # nYearPos >= 7, 10, 15 try smooths on 2, 3, 4 df
   
-  nYearPos <- with(data, sum(tapply(censoring, year, function(x) any(x == ""))))
+  nYearPos <- get_n_year_positive(data)
   
 
   # initialise output
@@ -977,19 +1064,43 @@ assess_lmm <- function(
   )
   
   
-  # get estimated change in concentration over whole time series and in the most recent 
-  # e.g. twenty years of monitoring (truncate when data missing and only compute if at least five years)
-  # in that period
-  # NB p value from contrast is NOT the same as from likelihood ratio test even if method = "linear"
+  # get estimated change in concentration over whole time series and in the most 
+  #   recent # e.g. twenty years of monitoring
+  # for recent change, truncate when data are missing and only compute if there 
+  #   are at least five years in that period
+  # NB p value from contrast is NOT the same as from likelihood ratio test even 
+  #   if method = "linear"
+  # NB ctsm.lmm.contrast traps for the pathological case where 
+  #   n_year_positive_recent == 0L and returns a Wald p-value of 1 
 
   if (output$method %in% c("linear", "smooth")) {
 
-    contrast.whole <- ctsm.lmm.contrast(fit, start = min(data$year), end = max(data$year))
+    # whole time series
+    
+    contrast.whole <- ctsm.lmm.contrast(
+      fit, 
+      start = min(data$year), 
+      end = max(data$year)
+    )
     row.names(contrast.whole) <- "whole"
     
+    # recent time series
+    
     start_recent <- max(max.year - recent.trend + 1, min(data$year))
-    if (sum(unique(data$year) >= start_recent - 0.5) >= 5) {
-      contrast.recent <- ctsm.lmm.contrast(fit, start = start_recent, end = max(data$year))
+    
+    data_recent <- dplyr::filter(data, year >= start_recent)
+    n_year_fit_recent <- dplyr::n_distinct(data_recent$year)
+    n_year_positive_recent <- get_n_year_positive(data_recent)
+
+    if (
+      n_year_fit_recent >= control_recent_change$n_year_fit & 
+      n_year_positive_recent >= control_recent_change$n_year_positive
+    ) {
+      contrast.recent <- ctsm.lmm.contrast(
+        fit, 
+        start = start_recent, 
+        end = max(data$year)
+      )
       row.names(contrast.recent) <- "recent"
       contrast.whole <- rbind(contrast.whole, contrast.recent)
     }		
@@ -1086,13 +1197,10 @@ assess_lmm <- function(
       # same approach; however p_linear_trend could be misleading when the years at 
       #   the end of the time series are all censored values and a flat model is 
       #   fitted; the estimate of recent_change is shrunk to reflect this, but 
-      #   p_linear_trend might be misleadingly significant; something to think 
-      #   about in the future
-      # however, there is a pathological case when all the fitted values in the 
-      #   recent period have the same value; recent_change is zero, and yet can still be 
-      #   significant based on p_linear_trend even though there are no data to support 
-      #   this; in this case use p from the Wald test (which is unity)
-      
+      #   p_linear_change might be misleadingly significant; something to think 
+      #   about in the future; most likely to be an issue if 
+      #   control$recent_change$n_year_positive is set lower than the default
+
       if (output$method == "linear") {
         p_overall_change <- p_linear_trend
       } else {
@@ -1103,10 +1211,7 @@ assess_lmm <- function(
       
       if ("recent" %in% row.names(output$contrasts)) {
         
-        if (
-          output$method == "linear" & 
-          max(data$year[data$censoring %in% ""]) > start_recent
-        ) {
+        if (output$method == "linear") {
           p_recent_change <- p_linear_trend
         } else {
           p_recent_change <- output$contrasts["recent", "p"]
@@ -1726,6 +1831,10 @@ initialise_assessment_summary <- function(
   out
 }
 
+get_n_year_positive <- function(data) {
+  out <- tapply(data$censoring, data$year, function(x) any(x == ""))
+  sum(out)
+}
 
 
 

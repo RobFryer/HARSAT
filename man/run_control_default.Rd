@@ -18,6 +18,15 @@ percentages):
 The power calculations are currently only applied to log-normally
 distributed data, which is why the trend is expressed as a percentage.
 }
+\item \code{recent_change} A list with the following components:
+\itemize{
+\item \code{n_year_fit} default = 5L
+\item \code{n_year_positive} default = 5L
+A recent change will only be computed if there are at least \code{n_year_fit}
+years of data in the recent period, of which at least \code{n_year_positive}
+contain at least one non-censored measurement. This only affects
+normally or log-normally distributed data.
+}
 }
 }
 \description{
