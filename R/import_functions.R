@@ -2711,6 +2711,9 @@ create_timeseries <- function(
     if ("weights" %in% names(wk)) {
       args = c(args, list(weights = wk$weights))
     }
+    if ("sum_censored" %in% names(wk)) {
+      args = c(args, list(sum_censored = wk$sum_censored))
+    }
     
     data <- do.call(linkFunction, args)
   }  
@@ -3609,13 +3612,13 @@ assign("determinand.link.LIPIDWT%", function(data, info, keep, drop, ...) {
 
 
 
-determinand.link.sum <- function(data, info, keep, drop, weights = NULL) {
+determinand.link.sum <- function(
+    data, info, keep, drop, weights = NULL, sum_censored = TRUE) {
 
-  stopifnot(length(keep) == 1, length(drop) > 1)
+  stopifnot(length(keep) == 1L, length(drop) > 1L)
   
   if (!any(data$determinand %in% drop)) 
     return(data)
-  
   
   if (!is.null(weights))     {
     if (!identical(sort(drop), sort(names(weights)))) {
@@ -3627,6 +3630,28 @@ determinand.link.sum <- function(data, info, keep, drop, weights = NULL) {
   }
   
   
+  # utility function to calculate the uncertainty on the sum
+  # based on the relative uncertainty of the largest measurement 
+  # uses arrange to deal with the case when there are multiple measurements 
+  #   which all have the same value, but possibly different uncertainties
+  
+  get_relative_uncertainty <- function(data) {
+
+    if (all(is.na(data$uncertainty))) { 
+      return(NA_real_)
+    }
+    
+    data <- tidyr::drop_na(data, "uncertainty")
+    
+    data <- dplyr::mutate(data, rel_uncrt = uncertainty / value)
+    data <- dplyr::arrange(data, desc(value), desc(rel_uncrt))
+    
+    rel_uncrt <- head(data$rel_uncrt, 1)
+    
+    return(rel_uncrt)
+  }
+    
+
   # identify samples with drop and not keep, which are the ones that will be summed
   # if keep already exists, then don't need to do anything
   # don't delete drop data because might want to assess them individually
@@ -3686,7 +3711,7 @@ determinand.link.sum <- function(data, info, keep, drop, weights = NULL) {
     
     
     # make output row have all the information from the largest determinand (ad-hoc) 
-    # ensures a sensible qaID, method_analysis, etc.
+    # ensures a sensible method_analysis, etc.
     
     out <- x[which.max(x$value), ]
     
@@ -3695,31 +3720,101 @@ determinand.link.sum <- function(data, info, keep, drop, weights = NULL) {
     out$group <- ctsm_get_info(info$determinand, keep, "group", info$compartment, sep="_")
     out$pargroup <- ctsm_get_info(info$determinand, keep, "pargroup")
     
-    # sum value and limit_detection, make it a less-than if all are less-thans, and take 
-    # proportional uncertainty from maximum value (for which uncertainty is reported)
+
+    # sum_censored == TRUE
+    # include censored values in the sum
+        
+    if (sum_censored) {
     
-    out$value <- sum(x$value)
-    out$limit_detection <- sum(x$limit_detection)
-    out$limit_quantification <- sum(x$limit_quantification)
+      # sum value, limit_detection, limit quantification
+      # make it censored if all values are censored 
+      # take proportional uncertainty from maximum value (for which uncertainty 
+      #   is reported)
+      
+      out$value <- sum(x$value)
+      out$limit_detection <- sum(x$limit_detection)
+      out$limit_quantification <- sum(x$limit_quantification)
+      
+      if ("" %in% x$censoring) {
+        out$censoring <- ""
+      } else if (dplyr::n_distinct(x$censoring) == 1) {
+        out$censoring <- unique(x$censoring) 
+      } else { 
+        out$censoring <- "<"
+      }
+      
+      out$uncertainty <- out$value * get_relative_uncertainty(x)
+
+      return(out)
+      
+    } 
     
-    if ("" %in% x$censoring)
+    
+    # sum_censored == FALSE
+    # exclude censored values from the sum 
+    # two cases - when there are some non-censored values and when everything 
+    # is censored
+      
+    if (any(x$censoring %in% "")) {
+      
+      # sum non-censored values
+      # take maximum limit_detection, limit quantification across all 
+      #   non-censored values
+      # take proportional uncertainty from maximum value (for which uncertainty 
+      #   is reported)
+      
+      id <- x$censoring %in% ""
+      y <- x[id, ]
+      
+      out$value <- sum(y$value)
+      out$limit_detection <- max(y$limit_detection)
+      out$limit_quantification <- max(y$limit_quantification)
       out$censoring <- ""
-    else if (dplyr::n_distinct(x$censoring) == 1) 
-      out$censoring <- unique(x$censoring) 
-    else 
-      out$censoring <- "<"
-    
-    if (all(is.na(x$uncertainty))) 
-      out$uncertainty <- NA
-    else {
-      wk <- x[!is.na(x$uncertainty), ]
-      pos <- which.max(wk$value)
-      upct <- with(wk, uncertainty / value)[pos]
-      out$uncertainty <- out$value * upct
+      
+      out$uncertainty <- out$value * get_relative_uncertainty(y)
+      
+  
+      # check that the summed value is greater than the maximum censored 
+      # value - only unlikely to happen when weights are applied
+      # if TRUE, return
+      # otherwise, base sum on the maximum censored value
+      
+      if (all(id)) {
+        return(out)
+      }
+      
+      x <- x[!id, ]
+      
+      if (out$value >= max(x$value)) {
+        return(out)
+      }
+
     }
     
-    out
     
+    # now left with only censored values
+
+    # take maximum censored value
+    # base censoring ("<" or "L" or "D") and limits of detection and 
+    #   quantification on the largest values associated with the maximum 
+    #   censored value (use arrange to deal with possible ties)
+    
+    out$value <- max(x$value)
+    
+    x <- dplyr::arrange(
+      x, 
+      desc(value), 
+      desc(limit_detection), 
+      desc(limit_quantification)
+    )
+    
+    id <- c("limit_detection", "limit_quantification", "censoring") 
+    out[1, id] <- x[1, id]
+    
+    out$uncertainty <- out$value * get_relative_uncertainty(x)
+      
+    return(out)
+
   })
   
   summed_data <- do.call(rbind, summed_data)
