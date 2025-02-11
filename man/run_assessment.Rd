@@ -47,9 +47,9 @@ argument will be generalised in the near future, so expect it to change.}
 
 \item{control}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A list of control
 parameters that allow the user to modify the way the assessment is run.
-At present, these only include parameters involved in post-hoc power
-calculations, but it is intended to move other structures such as
-\code{recent_trend} here. See details (which need to be written).}
+These currently include parameters for post-hoc power calculations and
+for the calculation of the 'recent_change' (in addition to the
+\code{recent_trend} argument above). See details.}
 
 \item{...}{Extra arguments which are passed to assessment_engine. See
 details (which need to be written).}
@@ -57,4 +57,60 @@ details (which need to be written).}
 \description{
 Fits a model to each timeseries, test for any temporal trend and compare with
 thresholds. Need to add a lot more in details.
+}
+\details{
+\subsection{Control parameters}{
+
+Some aspects of the model output are controlled using parameters which
+can be modified using the \code{control} argument. The default parameter list
+is described below. The \code{control} argument only needs to specify any
+changes. For example, to change the target power from 90\% (default) to 80\%,
+use
+
+\code{control = list(power = list(target_power = 80))}
+
+The default parameters are a list with the following components:
+
+\code{power}
+
+A list with the following components (all expressed as
+percentages):
+\itemize{
+\item \code{target_power} default = 90
+\item \code{target_trend} default = 5
+\item \code{size} default = 5
+}
+
+These affect the post-how power calculations. Power is currently only
+calculated for time series of log-normally distributed data, which is why
+the trend is expressed as a percentage.\if{html}{\out{
+  <br>
+  <br>
+}}
+
+
+\code{recent_change}
+
+A list with the following components:
+\itemize{
+\item \code{n_year_fit} default = 5L
+\item \code{n_year_positive} default = 5L
+}
+
+A recent change will only be computed if there are at least \code{n_year_fit}
+years of data in the recent period, of which at least \code{n_year_positive}
+contain at least one non-censored measurement. This only affects
+normally or log-normally distributed data.
+
+The default values of 5L mirror the requirements for calculating the
+change over the whole time series.
+
+Note that in harsat versions <= 1.0.2, \code{n_year_positive} was hard-wired to
+0L which occasionally led to pathological behaviour in the estimation of
+the recent change. To replicate previous outputs as closely as possible,
+set \code{n_year_positive} to 2L (the smallest value allowed to avoid any
+pathologial behavour). The change is only likely to affect long time series
+with infrequent sampling where most measurements in the recent period are
+censored.
+}
 }
