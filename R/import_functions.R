@@ -3557,7 +3557,7 @@ determinand.link.imposex <- function(data, info, keep, drop, ...) {
 
 determinand.link.VDS <- determinand.link.IMPS <- determinand.link.INTS <- determinand.link.imposex
 
-determinand.link.BBKF <- function(data, info, keep, drop, ...) {
+determinand.link.BBKF <- function(data, info, keep, drop, sum_censored = TRUE) {
   
   stopifnot(
     identical(keep, "BBKF"), 
@@ -3566,11 +3566,14 @@ determinand.link.BBKF <- function(data, info, keep, drop, ...) {
   
   # first sum samples with both BBF and BKF
   
-  data <- determinand.link.sum(data, info, "BBKF", c("BBF", "BKF"))
+  data <- determinand.link.sum(
+    data, info, "BBKF", c("BBF", "BKF"), sum_censored = sum_censored
+  )
   
   # now sum samples with both BBJF and BKF to give BBJKF
   
-  data <- determinand.link.sum(data, info, "BBJKF", c("BBJF", "BKF"))
+  data <- determinand.link.sum(
+    data, info, "BBJKF", c("BBJF", "BKF"), sum_censored = sum_censored)
   
   # now replace BBJKF with BBKF
   
