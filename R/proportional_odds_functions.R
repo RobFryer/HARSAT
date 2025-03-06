@@ -252,13 +252,32 @@ ordinal_theta_est <- function(
 #' is based; default 1000
 #'
 #' @export
-ordinal_theta_cl <- function(fit, nsim = 1000) {
+ordinal_theta_cl <- function(fit, nsim = 1000, annual_indices = NULL) {
     
   nCuts <- fit$K
   cutsID <- as.character(0:(nCuts-1))
   categories <- 0:nCuts
   
   indexID <- setdiff(names(fit$par), cutsID)
+
+  # ad-hoc treatment for indices where all the individuals are zero
+  
+  extra <- setdiff(c(fit$index), c(indexID, fit$ref_level))
+  
+  if (length(extra) >= 1L){
+    if (is.null(annual_indices)) {
+      stop(
+        "annual_indices must be supplied if there are zero indices\n", 
+        "this is a temporary measure until the problem is fixed properly\n",
+        "please contact the harsat development team", 
+        call. = FALSE)
+    }
+    
+    fit <- ordinal_update_fit(fit, indexID, extra, annual_indices)
+    
+    indexID <- c(indexID, extra)
+  }
+  
 
   set.seed(fit$seed)
   
@@ -289,15 +308,20 @@ ordinal_theta_cl <- function(fit, nsim = 1000) {
   
   # ad-hoc treatment for indices where all the individuals are zero
   
-  extra <- setdiff(fit$index, row.names(cl))
+  # extra <- setdiff(fit$index, row.names(cl))
+  # 
+  # if (length(extra > 0L)) {
+  #   warning("ad-hoc estimation of upper cl for zero indices")
+  #   extra <- data.frame(index_id = extra, lower = 0, upper = 0.5)
+  #   extra <- tibble::column_to_rownames(extra, "index_id")
+  #   cl <- dplyr::bind_rows(cl, extra)
+  # }
   
-  if (length(extra > 0L)) {
-    warning("ad-hoc estimation of upper cl for zero indices")
-    extra <- data.frame(index_id = extra, lower = 0, upper = 0.5)
-    extra <- tibble::column_to_rownames(extra, "index_id")
-    cl <- dplyr::bind_rows(cl, extra)
+  if (length(extra) >= 1L) {
+    cl[extra, "lower"] <- 0
   }
   
+
   n_tail = 2L
   if (any(grepl("Tritia nitida (reticulata)", row.names(cl), fixed = TRUE))) {
     # warning("ad-hoc fix for Tritia nitida (reticulata)")
@@ -314,6 +338,73 @@ ordinal_theta_cl <- function(fit, nsim = 1000) {
 
   cl
 }
+
+
+ordinal_update_fit <- function(fit, indexID, extraID, annual_indices) {
+  
+  if (!all(c(indexID, extraID) %in% annual_indices$indexID)) {
+    stop("missing indices")
+  }
+
+  annual_indices <- tibble::column_to_rownames(annual_indices, "indexID")
+    
+  positive <- annual_indices[indexID, ]
+  zero <- annual_indices[extraID, ]
+  
+  if (!all(zero$annual_index < 0.0001)) {
+    stop("non-zero indices present where they shouldn't be")
+  }
+
+  positive$par <- fit$par[indexID]
+  positive$var <- diag(fit$vcov[indexID, indexID])
+  
+  # predict par for zero index based on linear model on square root scale
+  
+  # lattice::xyplot(par ~ annual_index^0.5, data = positive, pch = 16)
+  
+  pred_model <- lm(par ~ sqrt(annual_index), data = positive)
+  
+  zero$par <- predict(pred_model, zero)
+
+
+  # predict var for zero index based on upper quantile, since get relatively
+  # less precise when based on many zeros
+
+  # lattice::xyplot(I(sqrt(var * n)) ~ annual_index^0.5, data = positive, pch = 16)
+
+  pred_sd <- quantile(sqrt(positive$var * positive$n), p = 0.9)
+
+  zero$var <- pred_sd * pred_sd / zero$n
+  
+  
+  # update fit$par and fit$vcov
+  
+  wk_n <- nrow(fit$vcov) + nrow(zero)
+  wk_names <- c(names(fit$par), row.names(zero))
+  
+  par <- rep(0, wk_n)
+  names(par) <- wk_names
+  
+  vcov <- matrix(
+    0, nrow = wk_n, ncol = wk_n, dimnames = list(wk_names, wk_names)
+  )
+  
+  par[names(fit$par)] <- fit$par
+  par[row.names(zero)] <- zero$par
+  
+  vcov[names(fit$par), names(fit$par)] <- fit$vcov
+  for (i in row.names(zero)) {
+    vcov[i, i] <- zero[i, "var"]
+  }
+
+  fit$par <- par
+  fit$vcov <- vcov
+
+  return(fit)
+}
+
+
+
 
 
 # finds station year species combinations for which both individual and pooled 
@@ -367,3 +458,6 @@ ordinal_theta_cl <- function(fit, nsim = 1000) {
 #   
 #   return(data)
 # }
+
+
+
