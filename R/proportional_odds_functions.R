@@ -12,7 +12,7 @@
 #' @export
 ctsm.VDS.varlist <- c(
   "ctsm.VDS.p.calc", "ctsm.VDS.loglik.calc", "ordinal_theta_est", 
-  "ordinal_theta_cl"
+  "ordinal_theta_cl", "ordinal_update_fit"
 )
 
 #' Detects the environment from the call
