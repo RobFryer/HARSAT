@@ -43,6 +43,7 @@ biota_data <- read_data(
   data_dir = file.path(working.directory, "data", "example_external_data"),
   data_format = "external",
   info_dir = file.path(working.directory, "information", "AMAP"),
+  control = list(region = list(id = "AMAP_region"))
 )
 #> Found in path determinand.csv C:\Users\robfr\Documents\HARSAT\HARSAT\information\AMAP\determinand.csv 
 #> Found in path species.csv C:\Users\robfr\Documents\HARSAT\HARSAT\information\AMAP\species.csv 
@@ -67,11 +68,16 @@ biota_data <- read_data(
 #> Argument max_year taken to be the maximum year in the data: 2020
 ```
 
-Note: in the above function, replace ‘control = list()’ with ‘control = list(use_stage = TRUE)’
-to include subseries in ICES format data runs; 
-for ‘external’ format runs, if the input data file includes a column named ‘subseries’, the
-data in this column will be used to define subseries, to exclude subseries runs this 
-column can be omitted or renamed e.g. to ‘nosubseries’ 
+Notes:  
+
+* the control argument identifies the column in the station dictionary that 
+contains AMAP regional information; this is only necessary here because the 
+column identifier differs from the AMAP default which is `amap_arctic_lme`  
+* for ICES format data, use `control = list(use_stage = TRUE)` to include 
+subseries based on the developmental `stage` of the monitoring organism; for 
+external format data, a column called `subseries` in the data file can be used 
+to define subseries
+
 
 # Prepare data for next stage
 

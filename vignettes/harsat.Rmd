@@ -113,10 +113,18 @@ water_data <- read_data(
 #> Reading station dictionary from:
 #>  'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_OSPAR/stations.txt'
 #> MD5 digest for: 'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_OSPAR/stations.txt': '58b9e90f314e89f637c60558c06755f4'
+#> Warning: the following columns are missing from the ICES extraction: 
+#>   amap_arctic_lme
+#>   This might be because the extraction was made before 14 June 2024, in which case
+#>   take care if working with AMAP regions
 #> 
 #> Reading contaminant and effects data from:
 #>  'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_OSPAR/water.txt'
 #> MD5 digest for: 'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_OSPAR/water.txt': '13d63b6161b671165b215b58f5e22469'
+#> Warning: the following columns are missing from the ICES extraction: 
+#>   amap_arctic_lme, casenumber
+#>   This might be because the extraction was made before 14 June 2024, in which case
+#>   take care if working with AMAP regions
 #> 
 #> Matching data with station dictionary
 #>  - restricting to stations in these convention areas: OSPAR 
