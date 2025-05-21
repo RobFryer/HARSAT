@@ -125,7 +125,7 @@ ctsm_summary_overview <- function(
   
   # order assessment so that it is compatible with timeSeries - 
   # need to resolve this
-  
+
   assessment <- assessment[row.names(timeSeries)]
   
   summaryList <- sapply(
@@ -184,20 +184,22 @@ ctsm_symbology_OSPAR <- function(summary, info, timeSeries, symbology, alpha = 0
     
     shape <- character(nrow(summary))
     
-    # trend symbols: a trend is estimated if pltrend is present - default shape is a large filled circle
+    # trend symbols 
+    # a trend is estimated if p_overall_change is present 
+    # default shape is a large filled circle
     
-    trendFit <- !is.na(pltrend)
+    trendFit <- !is.na(p_overall_change)
     shape[trendFit] <- "large_filled_circle"
     
-    # show a significant trend based on prtrend 
-    # NB prtrend might not exist even if pltrend does, because there are too few years of data in the
-    # recent window
+    # show a significant trend based on p_recent_change 
+    # note p_recent_change might not exist even if p_overall_change does, because 
+    # there are too few years of data in the recent window
     
     # isImposex <- timeSeries$detGroup %in% "Imposex"
     
-    isTrend <- !is.na(prtrend) & prtrend < alpha
-    upTrend <- isTrend & rtrend > 0
-    downTrend <- isTrend & rtrend < 0
+    isTrend <- !is.na(p_recent_change) & p_recent_change < alpha
+    upTrend <- isTrend & recent_change > 0
+    downTrend <- isTrend & recent_change < 0
     
     shape[downTrend] <- "downward_triangle"
     shape[upTrend] <- "upward_triangle"
@@ -265,36 +267,42 @@ ctsm_symbology_OSPAR <- function(summary, info, timeSeries, symbology, alpha = 0
   
   
   # adjust shape and colour for nonparametric test if nyfit <= 2 and nyall > 2
-  
-  # get the names of the variables which contain the result of the non-parametric test for each AC
+  # need to check whether the non-parametric test has been done (e.g. only 
+  #   imposex assessment) 
   
   if (!is.null(symbology)) {
+
+    # get the names of the variables which contain the result of the 
+    # non-parametric test for each AC
     
     ACbelow <- paste(AC, "below", sep = "")
     
-    wk <- summary[ACbelow]
-    wk[] <- lapply(wk, function(x) {
-      
-      ok <- !is.na(x) & goodStatus == "high"
-      if (any(ok))
-        x[ok] <- ifelse(x[ok] == "below", "above", "below")
-      x
-    })
+    if (any(ACbelow %in% names(summary))) {    
     
-    wk <- apply(wk, 1, function(x) {
+      wk <- summary[ACbelow]
+      wk[] <- lapply(wk, function(x) {
+        
+        ok <- !is.na(x) & goodStatus == "high"
+        if (any(ok))
+          x[ok] <- ifelse(x[ok] == "below", "above", "below")
+        x
+      })
       
-      if (all(is.na(x))) return(NA)
+      wk <- apply(wk, 1, function(x) {
+        
+        if (all(is.na(x))) return(NA)
+        
+        AC <- AC[!is.na(x)]
+        x <- x[!is.na(x)]
+        
+        if (any(x == "below")) classColour$below[AC[which.max(x == "below")]]
+        else classColour$above[AC[length(x)]]
+      })  
       
-      AC <- AC[!is.na(x)]
-      x <- x[!is.na(x)]
-      
-      if (any(x == "below")) classColour$below[AC[which.max(x == "below")]]
-      else classColour$above[AC[length(x)]]
-    })  
-    
-    id <- with(summary, nyfit <= 2 & nyall > 2 & !is.na(wk))
-    summary$colour[id] <- wk[id]
-    summary$shape[id] <- "small_filled_circle"
+      id <- with(summary, nyfit <= 2 & nyall > 2 & !is.na(wk))
+      summary$colour[id] <- wk[id]
+      summary$shape[id] <- "small_filled_circle"
+    }
     
   }
   
@@ -420,7 +428,8 @@ ctsm.web.AC <- function(assessment_ob, classification) {
 #'
 #' @export
 write_summary_table <- function(
-  assessment_obj, output_file = NULL, output_dir = ".", export = TRUE,
+  assessment_obj, 
+  output_file = NULL, output_dir = ".", export = TRUE,
   collapse_AC = NULL, extra_output = NULL, 
   symbology = NULL, 
   determinandGroups = NULL, append = FALSE) {
@@ -663,18 +672,10 @@ write_summary_table <- function(
     first_year_all = "firstYearAll",
     first_year_fit = "firstYearFit",
     last_year = "lastyear",
-    p_linear_trend = "pltrend",
-    linear_trend = "ltrend",
-    p_recent_trend = "prtrend",
-    recent_trend = "rtrend",
     detectable_trend = "dtrend",
     mean_last_year = "meanLY",
     climit_last_year = "clLY"
   )
-  
-  if ("class" %in% names(summary)) {
-    summary <- dplyr::rename(summary, imposex_class = "class")
-  }
   
   if ("dtrend_obs" %in% names(summary)) {
     summary <- dplyr::rename(
@@ -793,15 +794,51 @@ write_summary_table <- function(
   }
   
 
-  # write summary to output_file or return summary object
-    
-  if (export) {
-    readr::write_excel_csv(summary, output_file, na = "", append = append)
-    return(invisible())
-  } else {
+  # results
+  
+  # if export = FALSE return summary data frame
+  
+  if (!export) {
     return(summary)
   }
     
+  
+  # otherwise write to output_file
+  
+  # headers on a new file aren't created if append = TRUE
+  
+  if (!file.exists(output_file)) {
+    append <- FALSE
+  }
+  
+  # if append = TRUE check that column names are identical and warn if there
+  # are series that are going to be repeated
+  
+  if (append) {
+    old_summary <- safe_read_file(output_file)
+    if (!identical(names(old_summary), names(summary))) {
+      stop(
+        "\nCannot append because the names of the new summary output differ ",
+        "from those of the\n", 
+        "existing summary file.",
+        call. = FALSE
+      )
+    }
+    
+    if (any(summary$series %in% old_summary$series)) {
+      warning(
+        "Some time series in the new summary output are already reported in ",
+        "the existing\n", 
+        "summary file: you should check what is going on.",
+        call. = FALSE
+      )
+    }
+  }
+  
+  
+  
+  readr::write_excel_csv(summary, output_file, na = "", append = append)
+  return(invisible())
 }
 
 

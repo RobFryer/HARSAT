@@ -28,54 +28,94 @@ the station dictionary, or a combination of both.
 }
 \details{
 \code{info$add_stations} is a list of control parameters that modify the
-station matching process:
+station matching process. The default values depend on \code{info$purpose} and
+are given at the end of this section. The elements of \code{info$add_stations}
+are:
 \itemize{
-\item method: a string specifying whether the stations are matched by \code{"name"},
+\item \code{method}: a string specifying whether the stations are matched by \code{"name"},
 \code{"coordinates"}, or \code{"both"}. If \code{info$purpose} is \code{"custom"}, \code{method} is
-restricted to either \code{"name"} (the default) or \code{"coordinates"}. If
-\code{info$purpose} is \code{"OSPAR"}, \code{"HELCOM"} or \code{"AMAP"}, then method is set to
-\code{"both"} by default and stations are matched by name or coordinates
+restricted to either \code{"name"} (the default) or \code{"coordinates"}.
+If \code{info$purpose} is \code{"OSPAR"}, \code{"HELCOM"} or \code{"AMAP"}, then method is set
+to \code{"both"} by default and stations are matched by name or coordinates
 according to rules specified by OSPAR, HELCOM or AMAP data providers.
-Specifically, stations are matched by name for Denmark, France (biota and
-water - all years; sediment 2009 onwards), Ireland, Norway, Portugal, Spain
-(2005 onwards), Sweden, The Netherlands (2007 onwards), United Kingdom. All
-other stations are matched by coordinates.
-\item area: a vector of strings containing one or more of \code{"OSPAR"}, \code{"HELCOM"}
+Currently, stations are matched by name for Denmark, France (biota and
+water - all years; sediment 2009 onwards), Germany (biota HELCOM - all
+years; biota OSPAR, biota AMAP, sediment, water 2023 onwards), Ireland,
+Norway, Portugal, Spain (2005 onwards), Sweden, The Netherlands (2007
+onwards), United Kingdom. All other stations are matched by coordinates.
+\item \code{area}: a vector of strings containing one or more of \code{"OSPAR"}, \code{"HELCOM"}
 and \code{"AMAP"}; this restricts the stations to those in the corresponding
-convention area(s); NULL matches to all stations in the station dictionary
-\item datatype: a logical specifying whether the stations should be restricted
+convention area(s); \code{NULL} matches to all stations in the station dictionary
+\item \code{datatype}: a logical specifying whether the stations should be restricted
 to those with an appropriate datatype. If \code{TRUE}, a contaminant measurement
 in biota (for example) will only be matched to stations with
 \code{station_datatype} containing the string \code{"CF"}. Similarly, a biological
 effect measurement in biota will only be matched to stations with
 \code{station_datatype} containing the string \code{"EF"}
-\item temporal: a logical with \code{TRUE} indicating that stations should be
+\item \code{temporal}: a logical with \code{TRUE} indicating that stations should be
 restricted to those with \code{station_purpm} containing the string \code{"T"}
-\item governance_type: a string: \code{"none"}, \code{"data"}, \code{"stations"} or \code{"both"}.
-\code{"none"} means data and station governance are both ignored. \code{"data"} means
-that matching will be restricted by data governance but not station
-governance; for example if \code{governance_id == c("OSPAR", "AMAP")}, then data
-will only be matched to a station if one of \code{is_ospar_monitoring} and
-\code{is_amap_monitoring} is \code{TRUE}, with all stations considered regardless of
-station governance. \code{"stations"} mean that matching will be restricted by
-station governance but not by data governance; for example if
-\code{governance_id == c("OSPAR", "AMAP")}, then the stations will be restricted
-to those where \code{station_programgovernance} contains either \code{"OSPAR"} or
-\code{"AMAP"}, with all data considered regardless of data governance. \code{both}
-uses both data and station governance. If \code{governance_id} contains a single
-value, then the matching is strict. However, if \code{governance_id} contains
-multiple values, then the matching is more complicated. For example, if
-\code{governance_id == c("OSPAR", "AMAP")}, then measurements with
-\code{is_ospar_monitoring == TRUE} and \code{"is_amap_monitoring == FALSE"} are
-matched to stations where \code{station_programgovernance} contains \verb{"OSPAR"; measurements with }is_ospar_monitoring == FALSE\code{and}is_amap_monitoring ==
-TRUE\verb{are matched with stations where}station_programgovernance\code{contains}"AMAP"\verb{; but measurements where }is_ospar_monitoring == TRUE\code{and}is_amap_monitoring == TRUE\verb{are matched to stations where}station_programgovernance\verb{contains either}"OSPAR"\code{or}"AMAP"`.
-\item governance_id: a vector of strings containing one or more of \code{"OSPAR"},
-\code{"HELCOM"} and \code{"AMAP"}.
-\item grouping: a logical with \code{TRUE} indicating that stations will be grouped
-into meta-stations as specified by \code{station_asmtmimeparent} in the station
-dictionary. Defaults to \code{FALSE} apart from when \code{info$purpose == "OSPAR"}.
-\item check_coordinates: a logical with \code{TRUE} indicating that, when
+\item \code{governance_type}: a string: \code{"none"}, \code{"data"}, \code{"stations"} or \code{"both"}
+which controls how data and station governance are used in station matching.
+Data governance information is found in
+\code{data$is_amap_monitoring}, \code{data$is_helcom_monitoring} and
+\code{data$is_ospar_monitoring} which are based on the monitoring programme
+(MPROG) information provided in submissions to the ICES data base.
+Station governance information is found in
+\code{stations$station_programgovernance} which
+is provided by data submitters to the ICES station dictionary.
+\code{governance_type} is used in
+conjunction with \code{governance_id} (see below) as follows:
+\itemize{
+\item \code{"none"} means that data and station governance are both ignored
+\item \code{"data"} means that matching will be restricted by data governance but
+not station governance. For example, if \code{governance_id == "HELCOM"}, then
+data will only be matched to a station if \code{is_helcom_monitoring == TRUE}
+(with all stations considered regardless of station governance). If
+\code{governance_id} takes multiple values, e.g. \code{c("OSPAR", "AMAP")}, then
+data will only be matched to a station if e.g. either
+\code{is_ospar_monitoring == TRUE} or \code{is_amap_monitoring == TRUE}.
+\item \code{"stations"} means that matching will be restricted by
+station governance but not by data governance. For example, if
+\code{governance_id == "HELCOM"}, then the stations will be restricted to those
+where \code{station_programgovernance} contains \code{"HELCOM"} (with all data
+considered regardless of data governance). If
+\code{governance_id} takes mulitple values, e.g. \code{c("OSPAR", "AMAP")}, then
+the stations will be restricted
+to those where \code{station_programgovernance} contains e.g. either \code{"OSPAR"}
+or \code{"AMAP"}.
+\item \code{"both"} uses both data and station governance. For example, if
+\code{governance_id == "HELCOM"} then data will only be matched if
+\code{is_helcom_monitoring == TRUE} and the candidate stations will be
+restricted to those where \code{station_programmegovernance} contains
+\code{"HELCOM"}. If \code{governance_id} contains multiple values, e.g.
+\code{c("OSPAR", "AMAP")}, then data with
+\code{is_ospar_monitoring == TRUE} and \code{is_amap_monitoring == FALSE} are
+matched to stations where \code{station_programgovernance} contains \code{"OSPAR"};
+data with \code{is_ospar_monitoring == FALSE} and
+\code{is_amap_monitoring == TRUE} are matched with stations where
+\code{station_programgovernance} contains
+\code{"AMAP"}; but measurements where \code{is_ospar_monitoring == TRUE} and
+\code{is_amap_monitoring == TRUE} are matched to stations where
+\code{station_programgovernance} contains either \code{"OSPAR"} or \code{"AMAP"}.
+}
+\item \code{governance_id}: used in conjunction with \code{governance_type}. If
+\code{governance_type == "none"}, then \code{governance_id} should be set to \code{NULL}.
+Otherwise, \code{governance_id} must be a vector of strings
+containing one or more of \code{"AMAP"}, \code{"HELCOM"} and \code{"OSPAR"}.
+\item \code{grouping}: a logical with \code{TRUE} indicating that stations will be grouped
+into meta-stations as specified by \code{stations$station_asmtmimeparent} which
+is provided by data submitters to the ICES station dictionary.
+Defaults to \code{FALSE} apart from when \code{info$purpose == "OSPAR"}.
+\item \code{check_coordinates}: a logical with \code{TRUE} indicating that, when
 stations are matched by name, the sample coordinates must also be within
-the station geometry. No implemented yet, so defaults ot \code{FALSE}.
+the station geometry. Not implemented yet, so defaults to \code{FALSE}.
+}
+
+The default values of \code{info$add_stations} depend on \code{info$purpose} as follows:
+\itemize{
+\item \code{"AMAP"}: \code{list(method = "both", area = "AMAP",  datatype = FALSE, temporal = FALSE, governance_type = "none",  governance_id = NULL, group = FALSE, check_coordinates = FALSE)}
+\item \code{"HELCOM"}: \code{list(method = "both", area = "HELCOM",  datatype = FALSE, temporal = FALSE, governance_type = "none",  governance_id = NULL, group = FALSE, check_coordinates = FALSE)}
+\item \code{"OSPAR"}: \code{list(method = "both", area = "OSPAR",  datatype = TRUE, temporal = TRUE, governance_type = "both",  governance_id = c("OSPAR", "AMAP"), group = TRUE,  check_coordinates = FALSE)}
+\item \code{"custom"}: \code{list(method = "name", area = NULL,  datatype = FALSE, temporal = FALSE, governance_type = "none",  governance_id = NULL, group = FALSE, check_coordinates = FALSE)}
 }
 }

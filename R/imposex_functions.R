@@ -159,7 +159,7 @@ assess_imposex <- function(
   
   nYearFull <- length(unique(data$year))  
   
-  nYearFirst <- min(data$year)
+  firstYearFull <- min(data$year)
   
   
   # deal with data sets that have crept in by mistake and have no recent data
@@ -204,19 +204,18 @@ assess_imposex <- function(
   annualIndex <- annualIndex[annualIndex$year %in% unique(data$year), ]
     
   
-  # initialise output
-
+  # initialise output:
+  # - add class at end (but may deprecate this)
+  
   output <- list(data = data)
   
-  nYear <- length(unique(data$year))
-  
-  summary <- data.frame(
-    nyall = nYearFull, nyfit = nYear, nypos = nYear, 
-    firstYearAll = nYearFirst, firstYearFit = min(data$year), lastyear = max(data$year), 
-    p_nonlinear = NA, p_linear = NA, p_overall = NA, 
-    pltrend = NA, ltrend = NA, prtrend = NA, rtrend = NA, 
-    meanLY = NA, clLY = NA, class = NA)
-  
+  summary <- initialise_assessment_summary(
+    data, 
+    nyall = nYearFull,
+    firstYearAll = firstYearFull,
+    .extra = list(imposex_class = NA_character_)
+  )
+    
 
   # all individual data, a mixture, or just indices
   
@@ -263,11 +262,9 @@ assess_imposex <- function(
       infoLY <- c(tail(annualIndex, 1))
       if (!("clLY" %in% names(assessment$summary)) || 
           infoLY$upper < assessment$summary$clLY) {
-        assessment$summary <- within(assessment$summary, {
-          meanLY <- infoLY$index
-          clLY <- infoLY$upper
-          class <- imposex_class(species, clLY)
-        })
+        assessment$summary$meanLY <- infoLY$index
+        assessment$summary$clLY <- infoLY$upper
+        assessment$summary$imposex_class <- imposex_class(species, infoLY$upper)
       }
     }
   }  
@@ -363,12 +360,13 @@ imposex.assess.index <- function(annualIndex, species, determinand, info.imposex
 
   if (diff(range(value)) == 0) {
     if (nYear > 3) {
-      summary$p_linear <- summary$p_overall <- summary$pltrend <- summary$prtrend <- 1
-      summary$ltrend <- summary$rtrend <- 0
+      summary$p_linear_trend <- summary$p_overall_trend <- 
+        summary$p_overall_change <- summary$p_recent_change <- 1
+      summary$overall_change <- summary$recent_change <- 0
     }
     summary$meanLY <- value[1]
     summary$clLY <- value[1]
-    summary$class <- imposex_class(species, value[1])
+    summary$imposex_class <- imposex_class(species, value[1])
 
     output$summary <- data.frame(summary)
         
@@ -435,9 +433,11 @@ imposex.assess.index <- function(annualIndex, species, determinand, info.imposex
   output$pred <- data.frame(year = new.year, pred[c("fit", "ci.lower", "ci.upper")])
   
   if (nYear > 3) {
-    summary$p_linear <- summary$p_overall <- summary$pltrend <- summary$prtrend <- 
+    summary$p_linear_trend <- summary$p_overall_trend <- 
+      summary$p_overall_change <- summary$p_recent_change <- 
       round(output$coefficients["year", "Pr(>|t|)"], 4)
-    summary$ltrend <- summary$rtrend <- round(output$coefficients["year", "Estimate"], 4)
+    summary$overall_change <- summary$recent_change <- 
+      round(output$coefficients["year", "Estimate"], 4)
   }
   summary$meanLY <- round(tail(pred$fit, 1), 3)
   summary$clLY <- round(tail(pred$ci.upper, 1), 3)

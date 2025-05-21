@@ -2,7 +2,8 @@
 % Please edit documentation in R/import_functions.R
 \name{safe_read_file}
 \alias{safe_read_file}
-\title{Reads an input file, given a particular encoding, and possibly additional hints}
+\title{Reads an input file, given a particular encoding, and possibly additional
+hints}
 \usage{
 safe_read_file(
   file,
@@ -19,7 +20,8 @@ safe_read_file(
 \arguments{
 \item{file}{the file name}
 
-\item{header}{logical (default \code{TRUE}), whether or not a header line is expected}
+\item{header}{logical (default \code{TRUE}), whether or not a header line is
+expected}
 
 \item{sep}{character (defailt \verb{,}), field separator character}
 
@@ -27,11 +29,14 @@ safe_read_file(
 
 \item{dec}{character (default \code{.}), decimal character}
 
-\item{fill}{logical (default \code{TRUE}), if rows have unequal lengtg, additional blank fields are added}
+\item{fill}{logical (default \code{TRUE}), if rows have unequal length, additional
+blank fields are added}
 
-\item{comment.char}{character (default is empty), if not empty, a comment character}
+\item{comment.char}{character (default is empty), if not empty, a comment
+character}
 
-\item{strip.white}{local (default \code{TRUE}), strips leading and trailing white space from fields}
+\item{strip.white}{local (default \code{TRUE}), strips leading and trailing white s
+pace from fields}
 
 \item{...}{any additional parameters to \code{\link[utils:read.table]{utils::read.table}}}
 }
@@ -39,5 +44,6 @@ safe_read_file(
 a data frame
 }
 \description{
-Reads an input file, given a particular encoding, and possibly additional hints
+Reads an input file, given a particular encoding, and possibly additional
+hints
 }

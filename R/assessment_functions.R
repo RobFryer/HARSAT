@@ -30,11 +30,64 @@
 #'   argument will be generalised in the near future, so expect it to change.
 #' @param control `r lifecycle::badge("experimental")` A list of control 
 #'   parameters that allow the user to modify the way the assessment is run. 
-#'   At present, these only include parameters involved in post-hoc power 
-#'   calculations, but it is intended to move other structures such as 
-#'   `recent_trend` here. See details (which need to be written).
+#'   These currently include parameters for post-hoc power calculations and 
+#'   for the calculation of the 'recent_change' (in addition to the 
+#'   `recent_trend` argument above). See details.
 #' @param ... Extra arguments which are passed to assessment_engine. See
 #'   details (which need to be written).
+#'   
+#' @details
+#' 
+#'   ## Control parameters
+#'   
+#'   Some aspects of the model output are controlled using parameters which 
+#'   can be modified using the `control` argument. The default parameter list 
+#'   is described below. The `control` argument only needs to specify any  
+#'   changes. For example, to change the target power from 90% (default) to 80%, 
+#'   use 
+#'   
+#'   `control = list(power = list(target_power = 80))`
+#'    
+#'   The default parameters are a list with the following components:
+#'   
+#'   `power` 
+#'   
+#'   A list with the following components (all expressed as 
+#'   percentages):  
+#'   * `target_power` default = 90
+#'   * `target_trend` default = 5
+#'   * `size` default = 5  
+#'   
+#'   These affect the post-how power calculations. Power is currently only 
+#'   calculated for time series of log-normally distributed data, which is why 
+#'   the trend is expressed as a percentage.
+#'   
+#'   <br>
+#'   <br>
+#'   
+#'   `recent_change` 
+#'   
+#'   A list with the following components:  
+#'   - `n_year_fit` default = 5L
+#'   - `n_year_positive` default = 5L
+#'   
+#'   A recent change will only be computed if there are at least `n_year_fit`
+#'   years of data in the recent period, of which at least `n_year_positive` 
+#'   contain at least one non-censored measurement. This only affects 
+#'   normally or log-normally distributed data.
+#'   
+#'   The default values of 5L mirror the requirements for calculating the 
+#'   change over the whole time series.   
+#'   
+#'   Note that in harsat versions <= 1.0.2, `n_year_positive` was hard-wired to 
+#'   0L which occasionally led to pathological behaviour in the estimation of 
+#'   the recent change. To replicate previous outputs as closely as possible, 
+#'   set `n_year_positive` to 2L (the smallest value allowed to avoid any 
+#'   pathologial behavour). The change is only likely to affect long time series
+#'   with infrequent sampling where most measurements in the recent period are 
+#'   censored. 
+#'   
+#'   
 #' @export
 run_assessment <- function(
   ctsm_ob, 
@@ -420,7 +473,8 @@ assessment_engine <- function(ctsm.ob, series_id, parallel = FALSE, ...) {
         recent.trend = info$recent.trend, 
         distribution = distribution, 
         good.status = good.status,
-        power = info$power
+        power = info$power, 
+        control_recent_change = info$recent_change
       )
       
       args.list <- c(args.list, list(...))
@@ -458,6 +512,13 @@ assessment_engine <- function(ctsm.ob, series_id, parallel = FALSE, ...) {
 #'   - `size` default = 5%  
 #'   The power calculations are currently only applied to log-normally 
 #'   distributed data, which is why the trend is expressed as a percentage.
+#' * `recent_change` A list with the following components:  
+#'   - `n_year_fit` default = 5L
+#'   - `n_year_positive` default = 5L
+#'   A recent change will only be computed if there are at least `n_year_fit`
+#'   years of data in the recent period, of which at least `n_year_positive` 
+#'   contain at least one non-censored measurement. This only affects 
+#'   normally or log-normally distributed data.
 #'
 run_control_default <- function() {
 
@@ -468,11 +529,14 @@ run_control_default <- function() {
     target_trend = 5,
     size = 5
   )
-  
-  list(power = power)  
+
+  recent_change = list(
+    n_year_fit = 5L,
+    n_year_positive = 5L
+  )  
+    
+  list(power = power, recent_change = recent_change)  
 }
-
-
 
 
 
@@ -496,29 +560,52 @@ run_control_modify <- function(control_default, control = list()) {
 
   if (control$power$target_power <= control$power$size) {
     stop(
-      "error in target_power component of control$power:\n", 
+      "\nerror in target_power component of control$power:\n", 
       "target_power must be greater than size"
     )
   }
     
   if (control$power$size <= 0 | control$power$size >= 100) {
     stop(
-      "error in size component of control$power:\n", 
+      "\nerror in size component of control$power:\n", 
       "size (%) must be greater than 0 and less than 100"
     )
   }
   
   if (control$power$target_power >= 100) {
     stop(
-      "error in target_power component of control$power:\n", 
+      "\nerror in target_power component of control$power:\n", 
       "target_power must be less that 100%"
     )
   }
 
   if (control$power$target_trend <= -100) {
     stop(
-      "error in target_trend component of control$power:\n", 
+      "\nerror in target_trend component of control$power:\n", 
       "target_trend must be greater than -100%"
+    )
+  }
+  
+  if (control$recent_change$n_year_positive > control$recent_change$n_year_fit) {
+    stop(
+      "\ninconsistency in control$recent_change:\n",
+      "number of years with non-censored data can't be greater than the number\n", 
+      "of years of data",
+      call. = FALSE
+    )
+  }
+  
+  if (control$recent_change$n_year_fit < 2L) {
+    stop(
+      "\nerror in n_year_fit component of control$recent_change:\n",
+      "n_year_fit must be at least 2"
+    )
+  }
+  
+  if (control$recent_change$n_year_positive < 2L) {
+    stop(
+      "\nerror in n_year_positive component of control$recent_change:\n",
+      "n_year_positive must be at least 2"
     )
   }
   
@@ -529,6 +616,13 @@ run_control_modify <- function(control_default, control = list()) {
 
 
 
+#' Identifies functions needed for parallel processing in `run_assessment` 
+#'
+#' @param imposex A logical which, if TRUE, picks out extra functions required 
+#' for an imposex assessment; defaults to FALSE  
+#'
+#' @return A vector of character strings of function names  
+#'
 parallel_objects <- function(imposex = FALSE) {
   
   # assessment_functions.R
@@ -537,8 +631,9 @@ parallel_objects <- function(imposex = FALSE) {
   package.environment <- environment(sys.function(sys.nframe()))
   
   out <- c(
-    "negTwiceLogLik", 
     "check_convergence_lmm",
+    "initialise_assessment_summary",
+    "negTwiceLogLik", 
     objects(package.environment, pattern = "^assess_*"),
     objects(package.environment, pattern = "^get*"),
     objects(package.environment, pattern = "^ctsm*")
@@ -742,8 +837,8 @@ get_index_weighted_mean <- function(data, determinand) {
 
 assess_lmm <- function(
     data, annualIndex, AC, recent.years, determinand, max.year, 
-    recent.trend = 20, distribution, good.status, choose_model, 
-    power, ...) {
+    recent.trend = 20L, distribution, good.status, choose_model, 
+    power, control_recent_change, ...) {
 
   # silence non-standard evaluation warnings
   year <- NULL
@@ -887,7 +982,7 @@ assess_lmm <- function(
   # nyearPos >= 5 linear or smooth
   # nYearPos >= 7, 10, 15 try smooths on 2, 3, 4 df
   
-  nYearPos <- with(data, sum(tapply(censoring, year, function(x) any(x == ""))))
+  nYearPos <- get_n_year_positive(data)
   
 
   # initialise output
@@ -969,19 +1064,43 @@ assess_lmm <- function(
   )
   
   
-  # get estimated change in concentration over whole time series and in the most recent 
-  # e.g. twenty years of monitoring (truncate when data missing and only compute if at least five years)
-  # in that period
-  # NB p value from contrast is NOT the same as from likelihood ratio test even if method = "linear"
+  # get estimated change in concentration over whole time series and in the most 
+  #   recent # e.g. twenty years of monitoring
+  # for recent change, truncate when data are missing and only compute if there 
+  #   are at least five years in that period
+  # NB p value from contrast is NOT the same as from likelihood ratio test even 
+  #   if method = "linear"
+  # NB ctsm.lmm.contrast traps for the pathological case where 
+  #   n_year_positive_recent == 0L and returns a Wald p-value of 1 
 
   if (output$method %in% c("linear", "smooth")) {
 
-    contrast.whole <- ctsm.lmm.contrast(fit, start = min(data$year), end = max(data$year))
+    # whole time series
+    
+    contrast.whole <- ctsm.lmm.contrast(
+      fit, 
+      start = min(data$year), 
+      end = max(data$year)
+    )
     row.names(contrast.whole) <- "whole"
     
+    # recent time series
+    
     start_recent <- max(max.year - recent.trend + 1, min(data$year))
-    if (sum(unique(data$year) >= start_recent - 0.5) >= 5) {
-      contrast.recent <- ctsm.lmm.contrast(fit, start = start_recent, end = max(data$year))
+    
+    data_recent <- dplyr::filter(data, year >= start_recent)
+    n_year_fit_recent <- dplyr::n_distinct(data_recent$year)
+    n_year_positive_recent <- get_n_year_positive(data_recent)
+
+    if (
+      n_year_fit_recent >= control_recent_change$n_year_fit & 
+      n_year_positive_recent >= control_recent_change$n_year_positive
+    ) {
+      contrast.recent <- ctsm.lmm.contrast(
+        fit, 
+        start = start_recent, 
+        end = max(data$year)
+      )
       row.names(contrast.recent) <- "recent"
       contrast.whole <- rbind(contrast.whole, contrast.recent)
     }		
@@ -1023,29 +1142,29 @@ assess_lmm <- function(
   
   # construct summary output -
   
-  output$summary <- data.frame(
-    nyall = nYearFull, nyfit = nYear, nypos = nYearPos, 
-    firstYearAll = firstYearFull, firstYearFit = min(data$year), lastyear = max(data$year), 
-    p_nonlinear = NA, p_linear = NA, p_overall = NA, pltrend = NA, ltrend = NA, prtrend = NA, 
-    rtrend = NA, dtrend = NA, meanLY = NA, clLY = NA)
-  
+  output$summary <- initialise_assessment_summary(
+    data, 
+    nyall = nYearFull,
+    firstYearAll = firstYearFull, 
+    nypos = nYearPos
+  )
   
   output$summary <- within(output$summary, {
     
     if (output$method == "smooth") {
       
-      p_nonlinear <- with(output, {
+      p_nonlinear_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["linear", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
       })
 
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
 
-      p_overall <- with(output, {
+      p_overall_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
@@ -1055,56 +1174,50 @@ assess_lmm <- function(
       
     if (output$method == "linear") {
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_overall <- p_linear
+      p_overall_trend <- p_linear_trend
       
     }
     
     if (output$method %in% c("linear", "smooth")) {
       
-      # pltrend
-      # method = "linear" use p_linear (from likelihood ratio test)  
+      # p_overall_change
+      # method = "linear" use p_linear_trend (from likelihood ratio test)  
       # method = "smooth" use p from the Wald test in contrasts 
       # for linear model, likelihood ratio test is a better test (fewer 
       #   approximations) than the Wald test
       # for smooth model, would be better to go into profile likelihood 
       #   territory (future enhancement) 
       
-      # prtrend
-      # same approach; however p_linear could be misleading when the years at 
+      # p_recent_change
+      # same approach; however p_linear_trend could be misleading when the years at 
       #   the end of the time series are all censored values and a flat model is 
-      #   fitted; the estimate of rtrend is shrunk to reflect this, but p_linear 
-      #   might be misleadingly significant; something to think about in the 
-      #   future
-      # however, there is a pathological case when all the fitted values in the 
-      #   recent period have the same value; rtrend is zero, and yet can still be 
-      #   significant based on p_linear even though there are no data to support 
-      #   this; in this case use p from the Wald test (which is unity)
-      
+      #   fitted; the estimate of recent_change is shrunk to reflect this, but 
+      #   p_linear_change might be misleadingly significant; something to think 
+      #   about in the future; most likely to be an issue if 
+      #   control$recent_change$n_year_positive is set lower than the default
+
       if (output$method == "linear") {
-        pltrend <- p_linear
+        p_overall_change <- p_linear_trend
       } else {
-        pltrend <- output$contrasts["whole", "p"]
+        p_overall_change <- output$contrasts["whole", "p"]
       }
       
-      ltrend <- with(output$contrasts["whole", ], estimate / (end - start))
+      overall_change <- with(output$contrasts["whole", ], estimate / (end - start))
       
       if ("recent" %in% row.names(output$contrasts)) {
         
-        if (
-          output$method == "linear" & 
-          max(data$year[data$censoring %in% ""]) > start_recent
-        ) {
-          prtrend <- p_linear
+        if (output$method == "linear") {
+          p_recent_change <- p_linear_trend
         } else {
-          prtrend <- output$contrasts["recent", "p"]
+          p_recent_change <- output$contrasts["recent", "p"]
         }          
 
-        rtrend <- with(output$contrasts["recent", ], estimate / (end - start))
+        recent_change <- with(output$contrasts["recent", ], estimate / (end - start))
       }
     }
                               
@@ -1139,8 +1252,8 @@ assess_lmm <- function(
     # backtransform for log-normal distribution (and to give percentage trends)
     
     if (distribution == "lognormal") {
-      ltrend <- ltrend * 100
-      rtrend <- rtrend * 100
+      overall_change <- overall_change * 100
+      recent_change <- recent_change * 100
       dtrend <- dtrend * 100
       meanLY <- exp(meanLY)
       clLY <- exp(clLY)
@@ -1154,7 +1267,7 @@ assess_lmm <- function(
       value <- AC[i]
       diff <- with(output, if (method == "none") summary$meanLY - value else summary$clLY - value)
       
-      # estimate number of years until meanLY reaches target - based on rtrend
+      # estimate number of years until meanLY reaches target - based on recent_change
       # might be already there but cl is too high
       
       maxYear <- max(data$year)
@@ -1164,34 +1277,34 @@ assess_lmm <- function(
         
         if (good.status == "low") {
         
-          if (is.na(value) || (meanLY >= value & is.na(rtrend)))
+          if (is.na(value) || (meanLY >= value & is.na(recent_change)))
             NA
           else if (meanLY < value) 
             maxYear
-          else if (rtrend >= 0)
+          else if (recent_change >= 0)
             bigYear
           else {
             wk <- switch(
               distribution, 
-              lognormal = 100 * (log(value) - log(meanLY)) / rtrend,
-              (value - meanLY) / rtrend)
+              lognormal = 100 * (log(value) - log(meanLY)) / recent_change,
+              (value - meanLY) / recent_change)
             wk <- round(wk + maxYear)
             min(wk, bigYear)
           }
           
         } else {
           
-          if (is.na(value) || (meanLY <= value & is.na(rtrend)))
+          if (is.na(value) || (meanLY <= value & is.na(recent_change)))
             NA
           else if (meanLY > value) 
             maxYear
-          else if (rtrend <= 0)
+          else if (recent_change <= 0)
             bigYear
           else {
             wk <- switch(
               distribution, 
-              lognormal = 100 * (log(value) - log(meanLY)) / rtrend,
-              (value - meanLY) / rtrend)
+              lognormal = 100 * (log(value) - log(meanLY)) / recent_change,
+              (value - meanLY) / recent_change)
             wk <- round(wk + maxYear)
             min(wk, bigYear)
           }
@@ -1209,14 +1322,14 @@ assess_lmm <- function(
   
     # and round for ease of interpretation
     
-    p_nonlinear <- round(p_nonlinear, 4)
-    p_linear <- round(p_linear, 4)
-    p_overall <- round(p_overall, 4)
-    pltrend <- round(pltrend, 4)
-    prtrend <- round(prtrend, 4)
+    p_nonlinear_trend <- round(p_nonlinear_trend, 4)
+    p_linear_trend <- round(p_linear_trend, 4)
+    p_overall_trend <- round(p_overall_trend, 4)
+    p_overall_change <- round(p_overall_change, 4)
+    p_recent_change <- round(p_recent_change, 4)
     
-    ltrend <- round(ltrend, 1)
-    rtrend <- round(rtrend, 1)
+    overall_change <- round(overall_change, 1)
+    recent_change <- round(recent_change, 1)
     dtrend <- round(dtrend, 1)
   })
   
@@ -1675,6 +1788,53 @@ ctsm_dyear <- function(
 }
 
 
+# Utility functions ----
+
+initialise_assessment_summary <- function(
+    data, nyall, firstYearAll, nypos = NULL, .extra = NULL) {
+  
+  year <- data$year
+  
+  nyfit <- dplyr::n_distinct(year)
+  
+  if (is.null(nypos)) {
+    nypos <- nyfit
+  }
+  
+  out <- data.frame(
+    nyall = nyall, 
+    nyfit = nyfit, 
+    nypos = nypos, 
+    firstYearAll = firstYearAll, 
+    firstYearFit = min(year), 
+    lastyear = max(year),
+    p_nonlinear_trend = NA_real_, 
+    p_linear_trend = NA_real_, 
+    p_overall_trend = NA_real_, 
+    p_overall_change = NA_real_, 
+    overall_change = NA_real_, 
+    p_recent_change = NA_real_, 
+    recent_change = NA_real_, 
+    dtrend = NA_real_, 
+    meanLY = NA_real_, 
+    clLY = NA_real_ 
+  )  
+  
+  if (!is.null(.extra)) {
+    .extra <- as.data.frame(.extra)
+    if (any(names(.extra) %in% names(out)) || nrow(.extra) != 1) {
+      stop("error in specifying extra output variables")
+    }
+    out <- cbind(out, .extra)
+  }
+  
+  out
+}
+
+get_n_year_positive <- function(data) {
+  out <- tapply(data$censoring, data$year, function(x) any(x == ""))
+  sum(out)
+}
 
 
 
@@ -2014,29 +2174,29 @@ assess_survival <- function(
   
   # construct summary output -
   
-  output$summary <- data.frame(
-    nyall = nYearFull, nyfit = nYear, nypos = nYearPos, 
-    firstYearAll = firstYearFull, firstYearFit = min(data$year), lastyear = max(data$year), 
-    p_nonlinear = NA, p_linear = NA, p_overall = NA, pltrend = NA, ltrend = NA, prtrend = NA, 
-    rtrend = NA, dtrend = NA, meanLY = NA, clLY = NA)
+  output$summary <- initialise_assessment_summary(
+    data, 
+    nyall = nYearFull,
+    firstYearAll = firstYearFull, 
+  )
 
   
   output$summary <- within(output$summary, {
     
     if (output$method == "smooth") {
       
-      p_nonlinear <- with(output, {
+      p_nonlinear_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["linear", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
       })
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_overall <- with(output, {
+      p_overall_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
@@ -2046,36 +2206,36 @@ assess_survival <- function(
     
     if (output$method == "linear") {
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_overall <- p_linear
+      p_overall_trend <- p_linear_trend
       
     }
     
     if (output$method %in% c("linear", "smooth")) {
       
-      # for linear trend and recent trend, use pltrend (from likelihood ratio test) if 
-      # method = "linear", because a better test 
+      # for linear trend and recent trend, use p_overall_change (from likelihood 
+      # ratio test) if method = "linear", because a better test 
       # really need to go into profile likelihood territory here!
       
-      pltrend <- if (output$method == "linear") {
-        p_linear
+      p_overall_change <- if (output$method == "linear") {
+        p_linear_trend
       } else {
         output$contrasts["whole", "p"]
       }
       
-      ltrend <- with(output$contrasts["whole", ], estimate / (end - start))
+      overall_change <- with(output$contrasts["whole", ], estimate / (end - start))
       
       if ("recent" %in% row.names(output$contrasts)) {
-        prtrend <- if (output$method == "linear") {
-          p_linear
+        p_recent_change <- if (output$method == "linear") {
+          p_linear_trend
         } else {
           with(output$contrasts["recent", ], p)
         }
-        rtrend <- with(output$contrasts["recent", ], estimate / (end - start))
+        recent_change <- with(output$contrasts["recent", ], estimate / (end - start))
       }
     }
     
@@ -2103,8 +2263,8 @@ assess_survival <- function(
     
     # turn trends into 'percentage trends'
     
-    ltrend <- ltrend * 100
-    rtrend <- rtrend * 100
+    overall_change <- overall_change * 100
+    recent_change <- recent_change * 100
   })  
   
   if (!is.null(AC)) {
@@ -2113,7 +2273,7 @@ assess_survival <- function(
       value <- AC[i]
       diff <- with(output, if (method == "none") summary$meanLY - value else summary$clLY - value)
       
-      # estimate number of years until meanLY reaches target - based on rtrend
+      # estimate number of years until meanLY reaches target - based on recent_change
       # might be already there but cl is too high
       
       maxYear <- max(data$year)
@@ -2121,14 +2281,14 @@ assess_survival <- function(
       
       tillTarget <- with(output$summary, {
         
-        if (is.na(value) || (meanLY <= value & is.na(rtrend)))
+        if (is.na(value) || (meanLY <= value & is.na(recent_change)))
           NA
         else if (meanLY >= value) 
           maxYear
-        else if (rtrend <= 0)
+        else if (recent_change <= 0)
           bigYear
         else {
-          wk <- 100 * (log(value) - log(meanLY)) / rtrend
+          wk <- 100 * (log(value) - log(meanLY)) / recent_change
           wk <- round(wk + maxYear)
           min(wk, bigYear)
         }
@@ -2144,14 +2304,14 @@ assess_survival <- function(
     
     # and round for ease of interpretation
     
-    p_nonlinear <- round(p_nonlinear, 4)
-    p_linear <- round(p_linear, 4)
-    p_overall <- round(p_overall, 4)
-    pltrend <- round(pltrend, 4)
-    prtrend <- round(prtrend, 4)
+    p_nonlinear_trend <- round(p_nonlinear_trend, 4)
+    p_linear_trend <- round(p_linear_trend, 4)
+    p_overall_trend <- round(p_overall_trend, 4)
+    p_overall_change <- round(p_overall_change, 4)
+    p_recent_change <- round(p_recent_change, 4)
     
-    ltrend <- round(ltrend, 1)
-    rtrend <- round(rtrend, 1)
+    overall_change <- round(overall_change, 1)
+    recent_change <- round(recent_change, 1)
     dtrend <- round(dtrend, 1)
   })
   
@@ -2477,29 +2637,29 @@ assess_beta <- function(
   
   # construct summary output -
   
-  output$summary <- data.frame(
-    nyall = nYearFull, nyfit = nYear, nypos = nYearPos, 
-    firstYearAll = firstYearFull, firstYearFit = min(data$year), lastyear = max(data$year), 
-    p_nonlinear = NA, p_linear = NA, p_overall = NA, pltrend = NA, ltrend = NA, prtrend = NA, 
-    rtrend = NA, dtrend = NA, meanLY = NA, clLY = NA)
-  
+  output$summary <- initialise_assessment_summary(
+    data, 
+    nyall = nYearFull,
+    firstYearAll = firstYearFull, 
+  )
+
   
   output$summary <- within(output$summary, {
     
     if (output$method == "smooth") {
       
-      p_nonlinear <- with(output, {
+      p_nonlinear_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["linear", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
       })
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_overall <- with(output, {
+      p_overall_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
@@ -2509,36 +2669,36 @@ assess_beta <- function(
     
     if (output$method == "linear") {
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_overall <- p_linear
+      p_overall_trend <- p_linear_trend
       
     }
     
     if (output$method %in% c("linear", "smooth")) {
       
-      # for linear trend and recent trend, use pltrend (from likelihood ratio test) if 
-      # method = "linear", because a better test 
+      # for linear trend and recent trend, use p_overall_change (from likelihood 
+      # ratio test) if method = "linear", because a better test 
       # really need to go into profile likelihood territory here!
       
-      pltrend <- if (output$method == "linear") {
-        p_linear
+      p_overall_change <- if (output$method == "linear") {
+        p_linear_trend
       } else {
         output$contrasts["whole", "p"]
       }
       
-      ltrend <- with(output$contrasts["whole", ], estimate / (end - start))
+      overall_change <- with(output$contrasts["whole", ], estimate / (end - start))
       
       if ("recent" %in% row.names(output$contrasts)) {
-        prtrend <- if (output$method == "linear") {
-          p_linear
+        p_recent_change <- if (output$method == "linear") {
+          p_linear_trend
         } else {
           with(output$contrasts["recent", ], p)
         }
-        rtrend <- with(output$contrasts["recent", ], estimate / (end - start))
+        recent_change <- with(output$contrasts["recent", ], estimate / (end - start))
       }
     }
     
@@ -2572,7 +2732,7 @@ assess_beta <- function(
       value <- AC[i]
       diff <- with(output, if (method == "none") summary$meanLY - value else summary$clLY - value)
       
-      # estimate number of years until meanLY reaches target - based on rtrend
+      # estimate number of years until meanLY reaches target - based on recent_change
       # might be already there but cl is too high
       
       maxYear <- max(data$year)
@@ -2582,28 +2742,28 @@ assess_beta <- function(
         
         if (good_status == "low") {
           
-          if (is.na(value) || (meanLY >= value & is.na(rtrend)))
+          if (is.na(value) || (meanLY >= value & is.na(recent_change)))
             NA
           else if (meanLY < value) 
             maxYear
-          else if (rtrend >= 0)
+          else if (recent_change >= 0)
             bigYear
           else {
-            wk <- (qlogis(value / 100) - qlogis(meanLY / 100)) / rtrend
+            wk <- (qlogis(value / 100) - qlogis(meanLY / 100)) / recent_change
             wk <- round(wk + maxYear)
             min(wk, bigYear)
           }
           
         } else {
           
-          if (is.na(value) || (meanLY <= value & is.na(rtrend)))
+          if (is.na(value) || (meanLY <= value & is.na(recent_change)))
             NA
           else if (meanLY > value) 
             maxYear
-          else if (rtrend <= 0)
+          else if (recent_change <= 0)
             bigYear
           else {
-            wk <- (qlogis(value / 100) - qlogis(meanLY / 100)) / rtrend
+            wk <- (qlogis(value / 100) - qlogis(meanLY / 100)) / recent_change
             wk <- round(wk + maxYear)
             min(wk, bigYear)
           }
@@ -2621,14 +2781,14 @@ assess_beta <- function(
     
     # and round for ease of interpretation
     
-    p_nonlinear <- round(p_nonlinear, 4)
-    p_linear <- round(p_linear, 4)
-    p_overall <- round(p_overall, 4)
-    pltrend <- round(pltrend, 4)
-    prtrend <- round(prtrend, 4)
+    p_nonlinear_trend <- round(p_nonlinear_trend, 4)
+    p_linear_trend <- round(p_linear_trend, 4)
+    p_overall_trend <- round(p_overall_trend, 4)
+    p_overall_change <- round(p_overall_change, 4)
+    p_recent_change <- round(p_recent_change, 4)
     
-    ltrend <- round(ltrend, 3)
-    rtrend <- round(rtrend, 3)
+    overall_change <- round(overall_change, 3)
+    recent_change <- round(recent_change, 3)
     dtrend <- round(dtrend, 3)
   })
   
@@ -2878,29 +3038,29 @@ assess_negativebinomial <- function(
   
   # construct summary output -
   
-  output$summary <- data.frame(
-    nyall = nYearFull, nyfit = nYear, nypos = nYearPos, 
-    firstYearAll = firstYearFull, firstYearFit = min(data$year), lastyear = max(data$year), 
-    p_nonlinear = NA, p_linear = NA, p_overall = NA, pltrend = NA, ltrend = NA, prtrend = NA, 
-    rtrend = NA, dtrend = NA, meanLY = NA, clLY = NA)
+  output$summary <- initialise_assessment_summary(
+    data, 
+    nyall = nYearFull,
+    firstYearAll = firstYearFull, 
+  )
   
   
   output$summary <- within(output$summary, {
     
     if (output$method == "smooth") {
       
-      p_nonlinear <- with(output, {
+      p_nonlinear_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["linear", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
       })
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_overall <- with(output, {
+      p_overall_trend <- with(output, {
         smoothID <- paste0("smooth (df = ", dfSmooth, ")")
         diff <- anova[smoothID, "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, dfSmooth - 1, lower.tail = FALSE)
@@ -2910,36 +3070,36 @@ assess_negativebinomial <- function(
     
     if (output$method == "linear") {
       
-      p_linear <- with(output, {
+      p_linear_trend <- with(output, {
         diff <- anova["linear", "twiceLogLik"] - anova["mean", "twiceLogLik"]
         pchisq(diff, 1, lower.tail = FALSE)
       })
       
-      p_overall <- p_linear
+      p_overall_trend <- p_linear_trend
       
     }
     
     if (output$method %in% c("linear", "smooth")) {
       
-      # for linear trend and recent trend, use pltrend (from likelihood ratio test) if 
-      # method = "linear", because a better test 
+      # for linear trend and recent trend, use p_overall_change (from likelihood 
+      # ratio test) if method = "linear", because a better test 
       # really need to go into profile likelihood territory here!
       
-      pltrend <- if (output$method == "linear") {
-        p_linear
+      p_overall_change <- if (output$method == "linear") {
+        p_linear_trend
       } else {
         output$contrasts["whole", "p"]
       }
       
-      ltrend <- with(output$contrasts["whole", ], estimate / (end - start))
+      overall_change <- with(output$contrasts["whole", ], estimate / (end - start))
       
       if ("recent" %in% row.names(output$contrasts)) {
-        prtrend <- if (output$method == "linear") {
-          p_linear
+        p_recent_change <- if (output$method == "linear") {
+          p_linear_trend
         } else {
           with(output$contrasts["recent", ], p)
         }
-        rtrend <- with(output$contrasts["recent", ], estimate / (end - start))
+        recent_change <- with(output$contrasts["recent", ], estimate / (end - start))
       }
     }
     
@@ -2968,8 +3128,8 @@ assess_negativebinomial <- function(
     
     # turn trends into 'percentage trends'
     
-    ltrend <- ltrend * 100
-    rtrend <- rtrend * 100
+    overall_change <- overall_change * 100
+    recent_change <- recent_change * 100
     
   })  
   
@@ -2979,7 +3139,7 @@ assess_negativebinomial <- function(
       value <- AC[i]
       diff <- with(output, if (method == "none") summary$meanLY - value else summary$clLY - value)
       
-      # estimate number of years until meanLY reaches target - based on rtrend
+      # estimate number of years until meanLY reaches target - based on recent_change
       # might be already there but cl is too high
       
       maxYear <- max(data$year)
@@ -2989,28 +3149,28 @@ assess_negativebinomial <- function(
         
         if (good_status == "low") {
           
-          if (is.na(value) || (meanLY >= value & is.na(rtrend)))
+          if (is.na(value) || (meanLY >= value & is.na(recent_change)))
             NA
           else if (meanLY < value) 
             maxYear
-          else if (rtrend >= 0)
+          else if (recent_change >= 0)
             bigYear
           else {
-            wk <- (exp(value) - exp(meanLY)) / rtrend
+            wk <- (exp(value) - exp(meanLY)) / recent_change
             wk <- round(wk + maxYear)
             min(wk, bigYear)
           }
           
         } else {
           
-          if (is.na(value) || (meanLY <= value & is.na(rtrend)))
+          if (is.na(value) || (meanLY <= value & is.na(recent_change)))
             NA
           else if (meanLY > value) 
             maxYear
-          else if (rtrend <= 0)
+          else if (recent_change <= 0)
             bigYear
           else {
-            wk <- (exp(value) - exp(meanLY)) / rtrend
+            wk <- (exp(value) - exp(meanLY)) / recent_change
             wk <- round(wk + maxYear)
             min(wk, bigYear)
           }
@@ -3028,14 +3188,14 @@ assess_negativebinomial <- function(
     
     # and round for ease of interpretation
     
-    p_nonlinear <- round(p_nonlinear, 4)
-    p_linear <- round(p_linear, 4)
-    p_overall <- round(p_overall, 4)
-    pltrend <- round(pltrend, 4)
-    prtrend <- round(prtrend, 4)
+    p_nonlinear_trend <- round(p_nonlinear_trend, 4)
+    p_linear_trend <- round(p_linear_trend, 4)
+    p_overall_trend <- round(p_overall_trend, 4)
+    p_overall_change <- round(p_overall_change, 4)
+    p_recent_change <- round(p_recent_change, 4)
     
-    ltrend <- round(ltrend, 1)
-    rtrend <- round(rtrend, 1)
+    overall_change <- round(overall_change, 1)
+    recent_change <- round(recent_change, 1)
     dtrend <- round(dtrend, 1)
   })
   

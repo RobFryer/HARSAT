@@ -246,19 +246,26 @@ read_data <- function(
 }
 
 
-#' Reads an input file, given a particular encoding, and possibly additional hints
+#' Reads an input file, given a particular encoding, and possibly additional 
+#' hints
 #' 
 #' @param file the file name
-#' @param header logical (default `TRUE`), whether or not a header line is expected
+#' @param header logical (default `TRUE`), whether or not a header line is 
+#' expected
 #' @param sep character (defailt `,`), field separator character
 #' @param quote character (default `"`), field quote character
 #' @param dec character (default `.`), decimal character
-#' @param fill logical (default `TRUE`), if rows have unequal lengtg, additional blank fields are added
-#' @param comment.char character (default is empty), if not empty, a comment character
-#' @param strip.white local (default `TRUE`), strips leading and trailing white space from fields
+#' @param fill logical (default `TRUE`), if rows have unequal length, additional 
+#' blank fields are added
+#' @param comment.char character (default is empty), if not empty, a comment 
+#' character
+#' @param strip.white local (default `TRUE`), strips leading and trailing white s
+#' pace from fields
 #' @param ... any additional parameters to [`utils::read.table`]
 #' @return a data frame
-safe_read_file <- function(file, header=TRUE, sep=",", quote="\"", dec=".", fill=TRUE, comment.char="", strip.white=TRUE, ...) {
+safe_read_file <- function(
+    file, header = TRUE, sep = ",", quote = "\"", dec = ".", fill = TRUE, 
+    comment.char = "", strip.white = TRUE, ...) {
 
   ## Handle Excel
   extension <- toupper(tools::file_ext(file))
@@ -334,6 +341,7 @@ control_default <- function(purpose, compartment) {
     purpose, 
     OSPAR = c("ospar_region", "ospar_subregion"),
     HELCOM = c("helcom_subbasin", "helcom_l3", "helcom_l4"),
+    AMAP = "amap_arctic_lme",
     NULL
   )
 
@@ -341,10 +349,18 @@ control_default <- function(purpose, compartment) {
     purpose, 
     OSPAR = c("OSPAR_region", "OSPAR_subregion"),
     HELCOM = c("HELCOM_subbasin", "HELCOM_L3", "HELCOM_L4"),
+    AMAP = "AMAP_arctic_lme",
     NULL
   )
   
-  region$all <- !is.null(region$id)
+  region$all <- switch(
+    purpose, 
+    OSPAR = TRUE,
+    HELCOM = TRUE,
+    AMAP = FALSE,        ## Should be set to TRUE when shape files have been
+                         ## aligned
+    !is.null(region$id) 
+  )
     
   bivalve_spawning_season <- switch(
     compartment, 
@@ -385,7 +401,7 @@ control_default <- function(purpose, compartment) {
     ),
     AMAP = list(
       method = "both",
-      area = NULL,
+      area = "AMAP",
       datatype = FALSE,
       temporal = FALSE,
       governance_type = "none",
@@ -609,6 +625,61 @@ report_file_digest <- function(infile) {
 }
 
 
+#' Reads an ICES extraction
+#' 
+#' @description
+#' Utility function to read an ICES extraction (either data or stations) having
+#' specified the required column names and types. Prints a warning if required
+#' column names are missing.
+#' 
+#' @param infile The input file name
+#' @param var_id A named character vector giving the name and type (character, 
+#' integer, logical, numeric, etc.) of each column in the file; these do not 
+#' need to be in the same order as in the file.
+#' 
+#' @returns A data frame containing the input file
+#' 
+read_ICES_file <- function(infile, var_id) {
+
+  report_file_digest(infile) 
+
+  # read in first line of data to check column names
+  
+  data <- safe_read_file(infile, sep = "\t", strip.white = TRUE, nrow = 1)
+  
+  ok <- names(var_id) %in% names(data)
+  if (!all(ok)) {
+    id <- names(var_id)[!ok]
+    id <- sort(id)
+    warning(
+      "the following columns are missing from the ICES extraction: \n  ", 
+      paste(id, collapse = ", "), "\n", 
+      "  This might be because the extraction was made before 14 June 2024,",
+      " in which case\n", 
+      "  take care if working with AMAP regions",
+      call. = FALSE, 
+      immediate. = TRUE
+    )
+    var_id <- var_id[ok]
+  }
+  
+  
+  # read in full data set
+  
+  data <- safe_read_file(       
+    infile, 
+    sep = "\t",
+    # quote = "",             ## Quotes shouldn't be allowed, but disabling 
+    ## them breaks all reads
+    na.strings = c("", "NULL"), 
+    strip.white = TRUE,
+    colClasses = var_id
+  )
+
+  data
+}
+    
+  
 #' Reads station dictionary
 #'
 #' @param file A file reference for the station dictionary.
@@ -631,6 +702,7 @@ read_stations <- function(file, data_dir = ".", info) {
     var_id <- c(
       station_code = "character",
       station_country = "character", 
+      amap_arctic_lme = "character",
       helcom_subbasin = "character", 
       helcom_l3 = "character", 
       helcom_l4 = "character", 
@@ -661,16 +733,7 @@ read_stations <- function(file, data_dir = ".", info) {
       station_deprecated = "logical"
     )
     
-    report_file_digest(infile)
-    stations <- safe_read_file(
-      infile, 
-      sep = "\t",
-      quote = "",
-      na.strings = c("", "NULL"), 
-      strip.white = TRUE,
-      colClasses = var_id
-    )
-    
+    stations <- read_ICES_file(infile, var_id)
   }    
   
 
@@ -702,7 +765,7 @@ read_stations <- function(file, data_dir = ".", info) {
     # check required variables are present in data
     
     report_file_digest(infile)
-	stations <- safe_read_file(infile, strip.white = TRUE, nrows = 1)
+	  stations <- safe_read_file(infile, strip.white = TRUE, nrows = 1)
     
     ok <- required %in% names(stations)
     
@@ -718,7 +781,7 @@ read_stations <- function(file, data_dir = ".", info) {
     }
     
     
-    # read data
+    # read data 
     
     ok <- names(var_id) %in% names(stations)
     
@@ -760,7 +823,10 @@ read_stations <- function(file, data_dir = ".", info) {
 #'   Defaults to the working directory.
 #' @param info A list containing at least the following two elements:
 #' * compartment: `"biota"`, `"sediment"` or `"water"`
-#' * data_format: `"ICES"` or `"external"`
+#' * data_format: `"ICES"` or `"external"`    
+#' 
+#' An ICES biota extraction also requires:  
+#' * use_stage: `TRUE` or `FALSE`
 #' @returns A data frame containing the contaminant data.
 #' 
 #' @export
@@ -773,15 +839,17 @@ read_contaminants <- function(file, data_dir = ".", info) {
   # read in contaminant (and biological effects) data
   
   infile <- file.path(data_dir, file)
-  cat("\nReading contaminant and effects data from:\n '", 
-      infile, "'\n", sep = "")
+  cat(
+    "\nReading contaminant and effects data from:\n '", infile, "'\n", sep = ""
+  )
 
 
   if (info$data_format == "ICES") {
 
     var_id <- c(
       country = "character",
-      mprog = "character", 
+      mprog = "character",
+      amap_arctic_lme = "character",
       helcom_subbasin = "character",     
       helcom_l3 = "character",
       helcom_l4 = "character",
@@ -833,7 +901,8 @@ read_contaminants <- function(file, data_dir = ".", info) {
       tblparamid = "integer",          
       tblsampleid = "character",
       tblspotid = "integer",
-      tbluploadid = "integer"
+      tbluploadid = "integer", 
+      casenumber = "character"
     )
 
     if (info$compartment == "biota") {
@@ -850,24 +919,16 @@ read_contaminants <- function(file, data_dir = ".", info) {
         stage = "character",
         noinp = "integer",
         bulkid = "character",
-        tblbioid = "character",
-        accessionid = "integer"
+        tblbioid = "character"
       )
 
       var_id <- c(var_id, extra)
 
     }
 
-    report_file_digest(infile)
-    data <- safe_read_file(       
-      infile, 
-      sep = "\t",
-      # quote = "",             ## Quotes shouldn't be allowed, but disabling them breaks all reads
-      na.strings = c("", "NULL"), 
-      strip.white = TRUE,
-      colClasses = var_id
-    )
+    data <- read_ICES_file(infile, var_id)
     
+
     # add in extra required variable
     
     if (info$compartment == "biota" && info$use_stage) {
@@ -940,10 +1001,6 @@ read_contaminants <- function(file, data_dir = ".", info) {
       required <- c(required, "species")
     }
 
-  }
-  
-
-  if (info$data_format == "external") {  
 
     # check required variables are present in data
 
@@ -975,12 +1032,8 @@ read_contaminants <- function(file, data_dir = ".", info) {
       colClasses = var_id[ok]
     )
     
-  }
-  
 
-  # create missing (non-required) variables 
-  
-  if (info$data_format == "external") {
+    # create missing (non-required) variables 
   
     ok1 <- "uncertainty" %in% names(data)
     ok2 <- "unit_uncertainty" %in% names(data)
@@ -1028,54 +1081,51 @@ read_contaminants <- function(file, data_dir = ".", info) {
     if (!all(names(var_id) %in% names(data))) {
       stop("coding error - seek help from HARSAT team")
     }
-      
+
+    names(data) <- tolower(names(data))  
   }  
   
 
+  # additional validations: should be only required for external data, but you 
+  # never know what folk might have done to an ICES extraction
   
-  # additional validations (for external data)
+  # every valid `uncertainty` must have a valid `unit_uncertainty`
+    
+  uncertainty_present <- which(complete.cases(data$uncertainty))
+  uncertainty_present_valid_units <- 
+    data$unit_uncertainty[uncertainty_present] %in% c("%", "U2", "SD")
+  if (! all(uncertainty_present_valid_units)) {
+    stop(
+      "\nMissing or invalid uncertainty units for specified uncertainty values.",
+      "\nPlease check that all uncertainty values have a valid unit: %, U2, or SD",
+      call. = FALSE
+    )
+  }
+
   
-  if (info$data_format == "external") { 
-  
-    # every valid `uncertainty` must have a valid `unit_uncertainty`
-    uncertainty_present <- which(complete.cases(data$uncertainty))
-    uncertainty_present_valid_units <- 
-      data$unit_uncertainty[uncertainty_present] %in% c("%", "U2", "SD")
-    if (! all(uncertainty_present_valid_units)) {
+  # no missing sample identifier 
+  # can only check this for external data here because the sample identifier
+  # for ICES data is created later in finalise_data
+  # for future, could restructure read_stations, read_contaminants, 
+  # finalise_data and finalise_stations so that all the required processing is 
+  # done on the ICES extraction in one go, and then data checks can be applied
+  # to the data, whichever format they have arrived in
+
+  if (info$data_format == "external") {
+    
+    if (any(is.na(data$sample))) {
       stop(
-        "Missing or invalid uncertainty units for specified uncertainty values. ",
-        "Please check that all uncertainty values have a valid unit: %, U2, or SD"
+        "\nNo missing values are allowed in the 'sample' column of the ",
+        "contaminants file.", 
+        call. = FALSE
       )
     }
-  }    
-  
-  
-  # check regional identifiers are in the extraction 
-
-  # if (info$data_format == "ICES_old") {
-  #   
-  #   pos <- names(data) %in% info$region$id
-  #   if (sum(pos) != length(info$region$id)) {
-  #     stop("not all regional identifiers are in the data extraction")
-  #   }
-  # 
-  #   names(data)[!pos] <- tolower(names(data)[!pos])     # just in case!
-  #   
-  # } else 
-  
-  if (info$data_format == "external") {
-    names(data) <- tolower(names(data))  
+    
+    
+    
+    
   }
-  
-  
-  # create more useful names
-  # for biota, tblsampleid is the species, tblbioid gives the subsample (individual) 
-  # which with matrix gives the unique sample id
-  # for sediment, tblsampleid and matrix give the unique sample id
-  # to streamline, could make sample = tblbioid (biota) or tblsampleid (sediment)
-
-  
-  # variables common across purpose and compartments
+    
   
 
   # ensure further consistency
@@ -1106,58 +1156,99 @@ read_contaminants <- function(file, data_dir = ".", info) {
 #'   which control how the station matching is achieved. See details.
 #'
 #' @details `info$add_stations` is a list of control parameters that modify the
-#'   station matching process:
-#' * method: a string specifying whether the stations are matched by `"name"`,
+#'   station matching process. The default values depend on `info$purpose` and 
+#'   are given at the end of this section. The elements of `info$add_stations` 
+#'   are:
+#' * `method`: a string specifying whether the stations are matched by `"name"`,
 #'   `"coordinates"`, or `"both"`. If `info$purpose` is `"custom"`, `method` is
-#'   restricted to either `"name"` (the default) or `"coordinates"`. If
-#'   `info$purpose` is `"OSPAR"`, `"HELCOM"` or `"AMAP"`, then method is set to
-#'   `"both"` by default and stations are matched by name or coordinates
+#'   restricted to either `"name"` (the default) or `"coordinates"`.  
+#'   If `info$purpose` is `"OSPAR"`, `"HELCOM"` or `"AMAP"`, then method is set 
+#'   to `"both"` by default and stations are matched by name or coordinates
 #'   according to rules specified by OSPAR, HELCOM or AMAP data providers.
-#'   Specifically, stations are matched by name for Denmark, France (biota and
-#'   water - all years; sediment 2009 onwards), Ireland, Norway, Portugal, Spain
-#'   (2005 onwards), Sweden, The Netherlands (2007 onwards), United Kingdom. All
-#'   other stations are matched by coordinates.
-#' * area: a vector of strings containing one or more of `"OSPAR"`, `"HELCOM"`
+#'   Currently, stations are matched by name for Denmark, France (biota and
+#'   water - all years; sediment 2009 onwards), Germany (biota HELCOM - all 
+#'   years; biota OSPAR, biota AMAP, sediment, water 2023 onwards), Ireland, 
+#'   Norway, Portugal, Spain (2005 onwards), Sweden, The Netherlands (2007 
+#'   onwards), United Kingdom. All other stations are matched by coordinates.
+#' * `area`: a vector of strings containing one or more of `"OSPAR"`, `"HELCOM"`
 #'   and `"AMAP"`; this restricts the stations to those in the corresponding
-#'   convention area(s); NULL matches to all stations in the station dictionary
-#' * datatype: a logical specifying whether the stations should be restricted
+#'   convention area(s); `NULL` matches to all stations in the station dictionary
+#' * `datatype`: a logical specifying whether the stations should be restricted
 #'   to those with an appropriate datatype. If `TRUE`, a contaminant measurement
 #'   in biota (for example) will only be matched to stations with
 #'   `station_datatype` containing the string `"CF"`. Similarly, a biological
 #'   effect measurement in biota will only be matched to stations with
 #'   `station_datatype` containing the string `"EF"`
-#' * temporal: a logical with `TRUE` indicating that stations should be
+#' * `temporal`: a logical with `TRUE` indicating that stations should be
 #'   restricted to those with `station_purpm` containing the string `"T"`
-#' * governance_type: a string: `"none"`, `"data"`, `"stations"` or `"both"`.
-#'   `"none"` means data and station governance are both ignored. `"data"` means
-#'   that matching will be restricted by data governance but not station
-#'   governance; for example if `governance_id == c("OSPAR", "AMAP")`, then data
-#'   will only be matched to a station if one of `is_ospar_monitoring` and
-#'   `is_amap_monitoring` is `TRUE`, with all stations considered regardless of
-#'   station governance. `"stations"` mean that matching will be restricted by
-#'   station governance but not by data governance; for example if
-#'   `governance_id == c("OSPAR", "AMAP")`, then the stations will be restricted
-#'   to those where `station_programgovernance` contains either `"OSPAR"` or
-#'   `"AMAP"`, with all data considered regardless of data governance. `both`
-#'   uses both data and station governance. If `governance_id` contains a single
-#'   value, then the matching is strict. However, if `governance_id` contains
-#'   multiple values, then the matching is more complicated. For example, if
-#'   `governance_id == c("OSPAR", "AMAP")`, then measurements with
-#'   `is_ospar_monitoring == TRUE` and `"is_amap_monitoring == FALSE"` are
-#'   matched to stations where `station_programgovernance` contains `"OSPAR";
-#'   measurements with `is_ospar_monitoring == FALSE` and `is_amap_monitoring ==
-#'   TRUE` are matched with stations where `station_programgovernance` contains
+#' * `governance_type`: a string: `"none"`, `"data"`, `"stations"` or `"both"`  
+#'   which controls how data and station governance are used in station matching.
+#'   Data governance information is found in 
+#'   `data$is_amap_monitoring`, `data$is_helcom_monitoring` and 
+#'   `data$is_ospar_monitoring` which are based on the monitoring programme 
+#'   (MPROG) information provided in submissions to the ICES data base. 
+#'   Station governance information is found in 
+#'   `stations$station_programgovernance` which 
+#'   is provided by data submitters to the ICES station dictionary. 
+#'   `governance_type` is used in 
+#'   conjunction with `governance_id` (see below) as follows:  
+#'   - `"none"` means that data and station governance are both ignored 
+#'   - `"data"` means that matching will be restricted by data governance but 
+#'   not station governance. For example, if `governance_id == "HELCOM"`, then 
+#'   data will only be matched to a station if `is_helcom_monitoring == TRUE` 
+#'   (with all stations considered regardless of station governance). If 
+#'   `governance_id` takes multiple values, e.g. `c("OSPAR", "AMAP")`, then 
+#'   data will only be matched to a station if e.g. either 
+#'   `is_ospar_monitoring == TRUE` or `is_amap_monitoring == TRUE`. 
+#'   - `"stations"` means that matching will be restricted by
+#'   station governance but not by data governance. For example, if 
+#'   `governance_id == "HELCOM"`, then the stations will be restricted to those
+#'   where `station_programgovernance` contains `"HELCOM"` (with all data 
+#'   considered regardless of data governance). If 
+#'   `governance_id` takes mulitple values, e.g. `c("OSPAR", "AMAP")`, then 
+#'   the stations will be restricted
+#'   to those where `station_programgovernance` contains e.g. either `"OSPAR"` 
+#'   or `"AMAP"`. 
+#'   - `"both"` uses both data and station governance. For example, if 
+#'   `governance_id == "HELCOM"` then data will only be matched if 
+#'   `is_helcom_monitoring == TRUE` and the candidate stations will be 
+#'   restricted to those where `station_programmegovernance` contains 
+#'   `"HELCOM"`. If `governance_id` contains multiple values, e.g. 
+#'   `c("OSPAR", "AMAP")`, then data with
+#'   `is_ospar_monitoring == TRUE` and `is_amap_monitoring == FALSE` are
+#'   matched to stations where `station_programgovernance` contains `"OSPAR"`;
+#'   data with `is_ospar_monitoring == FALSE` and 
+#'   `is_amap_monitoring == TRUE` are matched with stations where 
+#'   `station_programgovernance` contains
 #'   `"AMAP"`; but measurements where `is_ospar_monitoring == TRUE` and
 #'   `is_amap_monitoring == TRUE` are matched to stations where
 #'   `station_programgovernance` contains either `"OSPAR"` or `"AMAP"`.
-#' * governance_id: a vector of strings containing one or more of `"OSPAR"`,
-#'   `"HELCOM"` and `"AMAP"`.
-#' * grouping: a logical with `TRUE` indicating that stations will be grouped
-#'   into meta-stations as specified by `station_asmtmimeparent` in the station
-#'   dictionary. Defaults to `FALSE` apart from when `info$purpose == "OSPAR"`.
-#' * check_coordinates: a logical with `TRUE` indicating that, when
+#' * `governance_id`: used in conjunction with `governance_type`. If
+#'    `governance_type == "none"`, then `governance_id` should be set to `NULL`.
+#'    Otherwise, `governance_id` must be a vector of strings 
+#'    containing one or more of `"AMAP"`, `"HELCOM"` and `"OSPAR"`. 
+#' * `grouping`: a logical with `TRUE` indicating that stations will be grouped
+#'   into meta-stations as specified by `stations$station_asmtmimeparent` which
+#'   is provided by data submitters to the ICES station dictionary. 
+#'   Defaults to `FALSE` apart from when `info$purpose == "OSPAR"`.
+#' * `check_coordinates`: a logical with `TRUE` indicating that, when
 #'   stations are matched by name, the sample coordinates must also be within
-#'   the station geometry. No implemented yet, so defaults ot `FALSE`.
+#'   the station geometry. Not implemented yet, so defaults to `FALSE`.
+#'   
+#' The default values of `info$add_stations` depend on `info$purpose` as follows:  
+#' * `"AMAP"`: `list(method = "both", area = "AMAP", 
+#'   datatype = FALSE, temporal = FALSE, governance_type = "none", 
+#'   governance_id = NULL, group = FALSE, check_coordinates = FALSE)`  
+#' * `"HELCOM"`: `list(method = "both", area = "HELCOM", 
+#'   datatype = FALSE, temporal = FALSE, governance_type = "none", 
+#'   governance_id = NULL, group = FALSE, check_coordinates = FALSE)`  
+#' * `"OSPAR"`: `list(method = "both", area = "OSPAR", 
+#'   datatype = TRUE, temporal = TRUE, governance_type = "both", 
+#'   governance_id = c("OSPAR", "AMAP"), group = TRUE, 
+#'   check_coordinates = FALSE)`  
+#' * `"custom"`: `list(method = "name", area = NULL, 
+#'   datatype = FALSE, temporal = FALSE, governance_type = "none", 
+#'   governance_id = NULL, group = FALSE, check_coordinates = FALSE)`  
 #'
 #' @returns A data frame containing the contaminant data augmented by variables
 #'   containing the station code and the station name
@@ -2232,7 +2323,6 @@ tidy_contaminants <- function(data, info) {
   }
   
 
-
   # add required variables 'replicate' and 'pargroup' (not present in external data)
   
   # have removed 'pargroup' for now as it can result in a lot of unrecognised 
@@ -2243,7 +2333,35 @@ tidy_contaminants <- function(data, info) {
     # data$pargroup <- ctsm_get_info(info$determinand, data$determinand, "pargroup")
   }
   
+  
+  # check that sample identifiers are not replicated across years, stations or 
+  # species - should only be an issue for external data
+  
+  var_id <- c("year", "station_code", "sample")
+  if (info$compartment == "biota") {
+    var_id <- append(var_id, "species", after = 2)
+  }
       
+  wk <- dplyr::distinct(data, dplyr::pick(var_id))
+  if (any(duplicated(wk$sample))) {
+    warning(
+      "The same sample identifier has been used in different years, or for ",
+      "different", 
+      "\nstations, or for different species (biota).", 
+      "\nA unique sample identifier should be used for each sample.",
+      "\nAn attempt has been made to create unique sample identifiers in the ",
+      "code, but it would", 
+      "\nbe better to do this yourself in the original contaminants file to ",
+      "ensure everything is", 
+      "\nmatched up correctly.",
+      call. = FALSE
+    )
+
+    # concatenate year, station_code, species and sample to give new sample
+    
+    data <- tidyr::unite(data, "sample", dplyr::all_of(var_id), remove = FALSE) 
+  }
+  
   data$sample <- as.character(data$sample)
 
   
@@ -2260,7 +2378,6 @@ tidy_contaminants <- function(data, info) {
   )
   
   data <- data[intersect(var_id, names(data))]
-  
   
   data
 }
@@ -2593,6 +2710,9 @@ create_timeseries <- function(
     args = list(data = data, info = info, keep = i, drop = wk$det)
     if ("weights" %in% names(wk)) {
       args = c(args, list(weights = wk$weights))
+    }
+    if ("sum_censored" %in% names(wk)) {
+      args = c(args, list(sum_censored = wk$sum_censored))
     }
     
     data <- do.call(linkFunction, args)
@@ -3437,7 +3557,7 @@ determinand.link.imposex <- function(data, info, keep, drop, ...) {
 
 determinand.link.VDS <- determinand.link.IMPS <- determinand.link.INTS <- determinand.link.imposex
 
-determinand.link.BBKF <- function(data, info, keep, drop, ...) {
+determinand.link.BBKF <- function(data, info, keep, drop, sum_censored = TRUE) {
   
   stopifnot(
     identical(keep, "BBKF"), 
@@ -3446,11 +3566,14 @@ determinand.link.BBKF <- function(data, info, keep, drop, ...) {
   
   # first sum samples with both BBF and BKF
   
-  data <- determinand.link.sum(data, info, "BBKF", c("BBF", "BKF"))
+  data <- determinand.link.sum(
+    data, info, "BBKF", c("BBF", "BKF"), sum_censored = sum_censored
+  )
   
   # now sum samples with both BBJF and BKF to give BBJKF
   
-  data <- determinand.link.sum(data, info, "BBJKF", c("BBJF", "BKF"))
+  data <- determinand.link.sum(
+    data, info, "BBJKF", c("BBJF", "BKF"), sum_censored = sum_censored)
   
   # now replace BBJKF with BBKF
   
@@ -3492,13 +3615,13 @@ assign("determinand.link.LIPIDWT%", function(data, info, keep, drop, ...) {
 
 
 
-determinand.link.sum <- function(data, info, keep, drop, weights = NULL) {
+determinand.link.sum <- function(
+    data, info, keep, drop, weights = NULL, sum_censored = TRUE) {
 
-  stopifnot(length(keep) == 1, length(drop) > 1)
+  stopifnot(length(keep) == 1L, length(drop) > 1L)
   
   if (!any(data$determinand %in% drop)) 
     return(data)
-  
   
   if (!is.null(weights))     {
     if (!identical(sort(drop), sort(names(weights)))) {
@@ -3510,6 +3633,28 @@ determinand.link.sum <- function(data, info, keep, drop, weights = NULL) {
   }
   
   
+  # utility function to calculate the uncertainty on the sum
+  # based on the relative uncertainty of the largest measurement 
+  # uses arrange to deal with the case when there are multiple measurements 
+  #   which all have the same value, but possibly different uncertainties
+  
+  get_relative_uncertainty <- function(data) {
+
+    if (all(is.na(data$uncertainty))) { 
+      return(NA_real_)
+    }
+    
+    data <- tidyr::drop_na(data, "uncertainty")
+    
+    data <- dplyr::mutate(data, rel_uncrt = uncertainty / value)
+    data <- dplyr::arrange(data, desc(value), desc(rel_uncrt))
+    
+    rel_uncrt <- head(data$rel_uncrt, 1)
+    
+    return(rel_uncrt)
+  }
+    
+
   # identify samples with drop and not keep, which are the ones that will be summed
   # if keep already exists, then don't need to do anything
   # don't delete drop data because might want to assess them individually
@@ -3569,7 +3714,7 @@ determinand.link.sum <- function(data, info, keep, drop, weights = NULL) {
     
     
     # make output row have all the information from the largest determinand (ad-hoc) 
-    # ensures a sensible qaID, method_analysis, etc.
+    # ensures a sensible method_analysis, etc.
     
     out <- x[which.max(x$value), ]
     
@@ -3578,31 +3723,101 @@ determinand.link.sum <- function(data, info, keep, drop, weights = NULL) {
     out$group <- ctsm_get_info(info$determinand, keep, "group", info$compartment, sep="_")
     out$pargroup <- ctsm_get_info(info$determinand, keep, "pargroup")
     
-    # sum value and limit_detection, make it a less-than if all are less-thans, and take 
-    # proportional uncertainty from maximum value (for which uncertainty is reported)
+
+    # sum_censored == TRUE
+    # include censored values in the sum
+        
+    if (sum_censored) {
     
-    out$value <- sum(x$value)
-    out$limit_detection <- sum(x$limit_detection)
-    out$limit_quantification <- sum(x$limit_quantification)
+      # sum value, limit_detection, limit quantification
+      # make it censored if all values are censored 
+      # take proportional uncertainty from maximum value (for which uncertainty 
+      #   is reported)
+      
+      out$value <- sum(x$value)
+      out$limit_detection <- sum(x$limit_detection)
+      out$limit_quantification <- sum(x$limit_quantification)
+      
+      if ("" %in% x$censoring) {
+        out$censoring <- ""
+      } else if (dplyr::n_distinct(x$censoring) == 1) {
+        out$censoring <- unique(x$censoring) 
+      } else { 
+        out$censoring <- "<"
+      }
+      
+      out$uncertainty <- out$value * get_relative_uncertainty(x)
+
+      return(out)
+      
+    } 
     
-    if ("" %in% x$censoring)
+    
+    # sum_censored == FALSE
+    # exclude censored values from the sum 
+    # two cases - when there are some non-censored values and when everything 
+    # is censored
+      
+    if (any(x$censoring %in% "")) {
+      
+      # sum non-censored values
+      # take maximum limit_detection, limit quantification across all 
+      #   non-censored values
+      # take proportional uncertainty from maximum value (for which uncertainty 
+      #   is reported)
+      
+      id <- x$censoring %in% ""
+      y <- x[id, ]
+      
+      out$value <- sum(y$value)
+      out$limit_detection <- max(y$limit_detection)
+      out$limit_quantification <- max(y$limit_quantification)
       out$censoring <- ""
-    else if (dplyr::n_distinct(x$censoring) == 1) 
-      out$censoring <- unique(x$censoring) 
-    else 
-      out$censoring <- "<"
-    
-    if (all(is.na(x$uncertainty))) 
-      out$uncertainty <- NA
-    else {
-      wk <- x[!is.na(x$uncertainty), ]
-      pos <- which.max(wk$value)
-      upct <- with(wk, uncertainty / value)[pos]
-      out$uncertainty <- out$value * upct
+      
+      out$uncertainty <- out$value * get_relative_uncertainty(y)
+      
+  
+      # check that the summed value is greater than the maximum censored 
+      # value - only unlikely to happen when weights are applied
+      # if TRUE, return
+      # otherwise, base sum on the maximum censored value
+      
+      if (all(id)) {
+        return(out)
+      }
+      
+      x <- x[!id, ]
+      
+      if (out$value >= max(x$value)) {
+        return(out)
+      }
+
     }
     
-    out
     
+    # now left with only censored values
+
+    # take maximum censored value
+    # base censoring ("<" or "L" or "D") and limits of detection and 
+    #   quantification on the largest values associated with the maximum 
+    #   censored value (use arrange to deal with possible ties)
+    
+    out$value <- max(x$value)
+    
+    x <- dplyr::arrange(
+      x, 
+      desc(value), 
+      desc(limit_detection), 
+      desc(limit_quantification)
+    )
+    
+    id <- c("limit_detection", "limit_quantification", "censoring") 
+    out[1, id] <- x[1, id]
+    
+    out$uncertainty <- out$value * get_relative_uncertainty(x)
+      
+    return(out)
+
   })
   
   summed_data <- do.call(rbind, summed_data)
@@ -3627,145 +3842,6 @@ determinand.link.sum <- function(data, info, keep, drop, weights = NULL) {
   
   data
 } 
-
-
-
-
-determinand.link.TEQDFP <- function(data, info, keep, drop, weights) {
-  
-  lifecycle::deprecate_warn(
-    "1.0.2", 
-    "determinand.link.TEQDFP()", 
-    details = c(
-      i = paste(
-        "use `determinand.link.sum()` with the TEFs supplied in the weights",
-        "argument"
-      ), 
-      i = 'see `vignette("example_HELCOM")` for further details'
-    ),
-    env = rlang::caller_env(), 
-    user_env = rlang::caller_env(2)
-  )
-
-  stopifnot(length(keep) == 1, length(drop) > 1)
-  
-  if (!any(data$determinand %in% drop)) 
-    return(data)
-  
-  
-  # identify samples with drop and not keep, which are the ones that will be summed
-  # if keep already exists, then don't need to do anything
-  # don't delete drop data because might want to assess them individually
-  
-  ID <- with(data, paste(sample, matrix))
-  
-  dropID <- data$determinand %in% drop 
-  keepID <- data$determinand %in% keep
-  
-  sum_ID <- ID %in% setdiff(ID[dropID], ID[keepID])
-  
-  if (sum(sum_ID) == 0)
-    return(data)
-  
-  dropTxt <- paste(drop, collapse = ", ")
-  cat("   Data submitted as", dropTxt, "summed to give", keep, fill = TRUE)
-  
-  
-  # get relevant sample matrix combinations
-  
-  data <- split(data, with(data, determinand %in% drop))
-  
-  ID <- with(data[["TRUE"]], paste(sample, matrix))
-  
-  summed_data <- by(data[["TRUE"]], ID, function(x) {
-    
-    # check all bases are the same 
-    
-    if (!all(drop %in% x$determinand)) return(NULL)
-
-    stopifnot(dplyr::n_distinct(x$basis) == 1)
-    
-    
-    # convert to ug/kg and then to TEQ
-    
-    id <- c("value", "uncertainty", "limit_detection", "limit_quantification")
-    
-    x[id] <- lapply(x[id], convert_units, from = x$unit, to = "ug/kg")
-    
-    TEQ <- weights[as.character(x$determinand)]
-    
-    x[id] <- lapply(x[id], "*", TEQ)
-    
-    
-    # make output row have all the information from the largest determinand (ad-hoc) 
-
-    # ensures a sensible qaID, method_analysis, etc.
-
-    
-    out <- x[which.max(x$value), ]
-    
-    out$determinand <- keep
-    
-    target_unit <- ctsm_get_info(info$determinand, keep, "unit", info$compartment, sep="_")
-    if (grepl("TEQ", target_unit)) {
-      out$unit <- "TEQ ug/kg"
-    } else {
-      out$unit <- "ug/kg"
-    }
-    out$group <- "Dioxins"
-    out$pargroup <- "OC-DX"
-    
-    # sum value and limit_detection, make it a less-than if all are less-thans, and take 
-    # proportional uncertainty from maximum value (for which uncertainty is reported)
-    # if no uncertainties reported at all, then have provided value of CB126 in info.unertainty
-    # with sdConstant multiplied by 0.1 to reflect TEQ effect on detection limit
-    
-    out$value <- sum(x$value)
-    out$limit_detection <- sum(x$limit_detection)
-    out$limit_quantification <- sum(x$limit_quantification)
-    
-    if ("" %in% x$censoring)
-      out$censoring <- ""
-    else if (dplyr::n_distinct(x$censoring) == 1) 
-      out$censoring <- unique(x$censoring) 
-    else 
-      out$censoring <- "<"
-    out$censoring <- if(all(x$censoring %in% "<")) "<" else ""
-    
-    if (all(is.na(x$uncertainty))) 
-      out$uncertainty <- NA
-    else {
-      wk <- x[!is.na(x$uncertainty), ]
-      pos <- which.max(wk$value)
-      upct <- with(wk, uncertainty / value)[pos]
-      out$uncertainty <- out$value * upct
-    }
-    
-    out
-    
-  })
-  
-  summed_data <- do.call(rbind, summed_data)
-  
-  
-  # see how many samples have been lost due to incomplete submissions
-  
-  nTotal <- length(unique(ID))
-  nSummed <- if (is.null(summed_data)) 0 else nrow(summed_data)
-  nLost <- nTotal - nSummed
-  
-  if (nLost > 0) 
-    message("     ", nLost, " of ", nTotal, " samples lost due to incomplete submissions")
-
-  
-  # combine data for both drop and keep and then add back into main data set
-  
-  data[["TRUE"]] <- rbind(data[["TRUE"]], summed_data)
-
-  data <- do.call(rbind, data)
-  
-  data
-}  
 
 
 

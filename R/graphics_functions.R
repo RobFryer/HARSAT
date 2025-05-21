@@ -610,7 +610,7 @@ plot.AC <- function(AC, ylim, useLogs = TRUE) {
 
 plot_data <- function(
     data, assessment, series, info, type = c("data", "assessment"), 
-    xykey.cex = 1.0, ntick.x = 4, ntick.y = 3, newPage = TRUE, ...) {
+    xykey.cex = 1.0, ntick.x = 4, ntick.y = 3, ...) {
 
   # silence non-standard evaluation warnings
   .data <- year <- censoring <- NULL
@@ -656,7 +656,7 @@ plot_data <- function(
   
 
   # set up graphical structures
-    
+
   args.list <- list(data$concentration)         # NB have taken logs above, so this is log concentration
   
   if (is.pred) {
@@ -676,7 +676,7 @@ plot_data <- function(
   else {
     ylim <- c(do.call("plot.data.ylim", args.list))
   }
-    
+
   xlim <- plot.data.xlim(data$year, info$recent_years)
 
   plot.formula <- data$concentration ~ data$year
@@ -693,7 +693,7 @@ plot_data <- function(
   AC.width <- unit(0, "npc")
   if (is.AC) {
 
-    AC <- plot.AC(assessment$AC, ylim, useLogs)
+    AC <- plot.AC(assessment$AC, ylim, useLogs)  ## This throws a newPage
 
     # if (any(AC$ok))
     #   AC <- AC[AC$ok,]
@@ -826,7 +826,8 @@ plot_data <- function(
         ylabel, 0, unit(1, "npc") + unit(1.5, "char"), just = c("left", "bottom"), gp = gpar(cex = xykey.cex))
       upViewport()
     })
-
+  
+  newPage <- !is.AC
   plot.setup(newPage)
   pushViewport(viewport(layout.pos.row = 1))
   pushViewport(wk.viewport)
@@ -850,7 +851,7 @@ plot.setup <- function(newPage) {
 label.units <- function(
   units = c("ug/kg", "mg/kg", "ng/ml", "pmol/min/mg protein", "ug/ml", "ug/l", 
             "nmol/min/mg protein", "ng/min/mg protein", "stg", "j/h/g", "mins",
-            "d", "%", "nr/1000 cells", "TEQ ug/kg", "ng/l"),
+            "d", "%", "nr/1000 cells", "ng/l"),
   basis, html = FALSE, compartment, extra.text = NA) {
 
   units <- match.arg(units)
@@ -873,7 +874,6 @@ label.units <- function(
       "ug/ml" = "&mu;g ml<sup>-1</sup>", 
       "ug/l" = "&mu;g l<sup>-1</sup>",
       "ng/l" = "ng l<sup>-1</sup>",
-      "TEQ ug/kg" = "TEQ &mu;g kg<sup>-1</sup>", 
       "stg" = "stage",
       "j/h/g" = "J h <sup>-1</sup> g <sup>-1</sup>",
       "pmol/min/mg protein" = "pmol min <sup>-1</sup> mg protein <sup>-1</sup>",
@@ -892,7 +892,6 @@ label.units <- function(
       "ug/ml" = 'paste(mu, "g") ~ "ml"^-1', 
       "ug/l" = 'paste(mu, "g") ~ "l"^-1', 
       "ng/l" = '"ng l"^-1', 
-      "TEQ ug/kg" = 'paste("TEQ", mu, "g") ~ "kg"^-1', 
       "stg" = '"stage"',
       "j/h/g" = '"J h"^-1 ~ "g"^-1',
       "pmol/min/mg protein" = '"pmol min"^-1 ~ "mg protein"^-1',
