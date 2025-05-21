@@ -105,10 +105,18 @@ water_data <- read_data(
 #> Reading station dictionary from:
 #>  'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_HELCOM/stations.txt'
 #> MD5 digest for: 'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_HELCOM/stations.txt': 'd229a1c984d507537840e73080f3773c'
+#> Warning: the following columns are missing from the ICES extraction: 
+#>   amap_arctic_lme
+#>   This might be because the extraction was made before 14 June 2024, in which case
+#>   take care if working with AMAP regions
 #> 
 #> Reading contaminant and effects data from:
 #>  'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_HELCOM/water.txt'
 #> MD5 digest for: 'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_HELCOM/water.txt': 'b18b0556f6f78378c6f0a77682f51988'
+#> Warning: the following columns are missing from the ICES extraction: 
+#>   amap_arctic_lme, casenumber
+#>   This might be because the extraction was made before 14 June 2024, in which case
+#>   take care if working with AMAP regions
 #> 
 #> Matching data with station dictionary
 #>  - restricting to stations in these convention areas: HELCOM 
@@ -350,10 +358,18 @@ sediment_data <- read_data(
 #> Reading station dictionary from:
 #>  'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_HELCOM/stations.txt'
 #> MD5 digest for: 'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_HELCOM/stations.txt': 'd229a1c984d507537840e73080f3773c'
+#> Warning: the following columns are missing from the ICES extraction: 
+#>   amap_arctic_lme
+#>   This might be because the extraction was made before 14 June 2024, in which case
+#>   take care if working with AMAP regions
 #> 
 #> Reading contaminant and effects data from:
 #>  'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_HELCOM/sediment.txt'
 #> MD5 digest for: 'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_HELCOM/sediment.txt': 'a5635836e9a69f3dd8be42d5078cad6b'
+#> Warning: the following columns are missing from the ICES extraction: 
+#>   amap_arctic_lme, casenumber
+#>   This might be because the extraction was made before 14 June 2024, in which case
+#>   take care if working with AMAP regions
 #> 
 #> Matching data with station dictionary
 #>  - restricting to stations in these convention areas: HELCOM 
@@ -545,10 +561,18 @@ biota_data <- read_data(
 #> Reading station dictionary from:
 #>  'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_HELCOM/stations.txt'
 #> MD5 digest for: 'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_HELCOM/stations.txt': 'd229a1c984d507537840e73080f3773c'
+#> Warning: the following columns are missing from the ICES extraction: 
+#>   amap_arctic_lme
+#>   This might be because the extraction was made before 14 June 2024, in which case
+#>   take care if working with AMAP regions
 #> 
 #> Reading contaminant and effects data from:
 #>  'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_HELCOM/biota.txt'
 #> MD5 digest for: 'C:/Users/robfr/Documents/HARSAT/HARSAT/data/example_HELCOM/biota.txt': '0a1a33c4e668e63c97a6d50cdc644d22'
+#> Warning: the following columns are missing from the ICES extraction: 
+#>   amap_arctic_lme, casenumber
+#>   This might be because the extraction was made before 14 June 2024, in which case
+#>   take care if working with AMAP regions
 #> 
 #> Matching data with station dictionary
 #>  - restricting to stations in these convention areas: HELCOM 
