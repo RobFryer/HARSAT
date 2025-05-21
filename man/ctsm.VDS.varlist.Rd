@@ -5,7 +5,7 @@
 \alias{ctsm.VDS.varlist}
 \title{ctsm.VDS.varlist}
 \format{
-An object of class \code{character} of length 4.
+An object of class \code{character} of length 5.
 }
 \usage{
 ctsm.VDS.varlist
