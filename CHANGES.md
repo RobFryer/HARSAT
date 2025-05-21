@@ -6,35 +6,35 @@ This release is that used to run the OSPAR 2025 CEMP assessment.
 
 #### ICES data extractions
 
-`read_data` and `read_contaminants` now explicitly look for the variables `amap_arctic_lme` and `casenumber` in the contaminants data file when argument `data_format` is set to `"ICES"`. These variables were introduced in ICES extractions in mid-June 2024. A warning is printed if the variables are missing. `read_stations` also explicitly looks for `amap_arctic_lme` in the ICES station dictionary.
+`read_data` and `read_contaminants` now expect to find the variables `amap_arctic_lme` and `casenumber` in the contaminants data file from an ICES extraction (when argument `data_format` is set to `"ICES"`). These variables were introduced in ICES extractions in mid-June 2024. A warning is printed if the variables are missing. `read_stations` also expects to fins `amap_arctic_lme` in the ICES station dictionary.
 
 * `amap_arctic_lme` contains AMAP large marine ecosystem regional information 
-* `casenumber` is the accession identification id in the AIMS (Accession Information Management System) system introduced in 2024; `casenumber` replaces accessionid from the now discontinued DAD system
+* `casenumber` is the accession identification id in the AIMS (Accession Information Management System) system introduced in 2024; it replaces accessionid from the now discontinued DAD system
 
 #### AMAP assessments
 
 There are two changes that affect data processing for AMAP assessments (when argument `purpose` in `read_data` is set to `"AMAP"`).
 
-First, the default behaviour by which `read_data` matches stations to data from an ICES extraction is now to restrict eligible stations in those in the AMAP area. Previously it didn't matter where the stations were. The default behaviour can be changed using the `add_stations` element of the `control` argument of `read_data`. See the help file of `add_stations` for more information about station matching.
+First, the default behaviour by which `read_data` matches stations to data from an ICES extraction is now to restrict eligible stations in those in the AMAP area. Previously it didn't matter where the stations were. The default behaviour can be changed using `control$add_stations` in `read_data`. See the help file of `add_stations` for more information about station matching.
 
-Second, the default values for the elements of control$region are now
+Second, the default values `control$region` are now
 
-* id: "amap_arctic_lme"
-* names: "AMAP_arctic_lme"
-* all: FALSE (this is because there are discrepancies between shape files for the AMAP area and the AMAP large marine ecosystems)
+* `id = "amap_arctic_lme"`
+* `names = "AMAP_arctic_lme"`
+* `all = FALSE` (because of discrepancies between shape files for the AMAP area and the AMAP large marine ecosystems)
 
-Users of external data should either rename the variable with regional information in the station dictionary to `amap_arctic_lme` or set `control$region` so that it picks up the existing name of this variable.
+Users of external data might need to rename the regional variable in the station dictionary to `amap_arctic_lme` or use `control$region` to pick up the existing variable name.
 
 #### Summations involving censored values
 
-An argument `sum_censored` has been added to `determinand.link.sum` which allows the user to control whether censored values are included when computing a sum.
+An argument `sum_censored` has been added to `determinand.link.sum` which gives control over how censored values are treated when computing a summed concentration.
 
 `sum_censored = TRUE` (default) maintains the previous behaviour where the sum is computed by adding all the non-censored measurements and the censored values of the censored measurements. If all the measurements are censored and all the censored values are equal to the limit of detection, then the sum will be the sum of the limits of detection.
 
 `sum_censored = FALSE` typically treats each censored value as zero when calculating the sum. Usually, the output is the sum of the non-censored measurements. There are two exceptions:
 
 * when all measurements are censored, the output is the largest censored value (and is flagged as a censored measurement)
-* when the sum of the non-censored measurements is less than the largest censored value, the output is the largest censored value (and is flagged as a censored measurement); this will be unusual and is most likely to occur when using weights (and small weights are applied to non-censored measurements and a large weight is applied to the censored measurements)
+* when the sum of the non-censored measurements is less than the largest censored value, the output is the largest censored value (and is flagged as a censored measurement); this will be unusual and is most likely to occur when using weights (and small weights are applied to non-censored measurements and large weights are applied to the censored measurements)
 
 The same argument has also been added to customised link functions such as `determinand.link.BBKF` which call `determinand.link.sum`.
 
@@ -46,21 +46,21 @@ Several variables in the output from `write_summary_table` have been renamed:
 
 * `p_nonlinear`    --> `p_nonlinear_trend`
 * `p_linear`       --> `p_linear_trend`
-* `p_overall       --> `p_overall_trend`
+* `p_overall`      --> `p_overall_trend`
 * `p_linear_trend` --> `p_overall_change`
 * `p_recent_trend` --> `p_recent change`
 * `linear_trend`   --> `overall_change`
 * `recent_trend`   --> `recent_change`
 
-The first three variables report evidence of systematic trends in the data. The remaining variables all relate to changes in concentration between the start and end of either the whole time series or the 'recent' part of the time series (typically the last 20 monitoring years). The renaming was prompted by confusion about the original names `p_linear_trend` and `linear_trend` which suggest linearity that is not always the case. The harsat team struggled to come up with suitable alternatives and hopes that the new names are less confusing (if not crystal clear). 
+The first three variables report evidence of systematic trends in the data. The remaining variables all relate to changes in concentration between the start and end of either the whole time series or the 'recent' part of the time series (typically the last 20 monitoring years). The renaming was prompted by confusion about the original names `p_linear_trend` and `linear_trend` which suggest linearity that is not always the case. The harsat team struggled to come up with suitable alternatives and hopes that the new names are at least less confusing, if not crystal clear. 
 
 #### Calculation of recent_change
 
-The `overall_change` is the change in concentration over the whole monitoring period. It is only calculated if there are at least five years of data with at least one non-censored measurement.
+`overall_change` is the change in concentration over the whole monitoring period. It is only calculated if there are at least five years of data each with at least one non-censored measurement.
 
-The `recent_change` is the change in concentration in recent years, typically taken to be the last twenty monitoring years. In previous releases, `recent_change` was only calculated if `overall_change` had been calculated and there were at least five years of data in the recent period. However there was no requirement on the number of years with non-censored measurements in the recent period. This meant that the evidence base for `recent_change` could be weak (e.g. if only one or two years in the recent period had non-censored measurements). Occasionally, `recent_change` could be undefined for long time series with infrequent monitoring and many censored measurements. 
+`recent_change` is the change in concentration in recent years, typically taken to be the last twenty monitoring years. In previous releases, `recent_change` was calculated if `overall_change` had been calculated and there were at least five years of data in the recent period. However there was no requirement on the number of years with non-censored measurements in the recent period. This meant that the evidence base for `recent_change` could be weak (e.g. if only one or two years in the recent period had non-censored measurements). Occasionally `recent_change` could be undefined for long time series with infrequent monitoring and many censored measurements. 
 
-The user can now control the calculation of `recent_change` using the `control` argument of `run_assessment`. Specifically, `control$recent_change` has two components:
+The calculation of `recent_change` can now be controlled using the `control` argument of `run_assessment`. Specifically, `control$recent_change` has two components:
 
 * `n_year_fit` - default 5L
 * `n_year_positive` - default 5L
@@ -75,7 +75,7 @@ The behaviour of previous releases can be replicated (almost) by seting `n_year_
 
 Imposex assessments (based on individual measurements) involve the estimation of cut-points that measure the transition from one imposex stage to the next on the latent odds scale. This estimation pools the data from several (often many) timeseries to improve the precision of the cut-point estimates and is done before the call to `run_assessment`. 
 
-Data from timeseries / year combinations where all the individual measurements are zero (equivalently, the annual index is zero) contain no information on cut-points and are now removed from the estimation procedure. This improves convergence. The estimation routine has been renamed as `ordinal_theta_est` (previously `ctsm.VDS.index.opt )
+Data from timeseries / year combinations where all the individual measurements are zero (equivalently, the annual index is zero) contain no information on cut-points and are now removed from the estimation procedure. This improves convergence. The estimation routine has been renamed as `ordinal_theta_est` (previously `ctsm.VDS.index.opt`)
 
 Estimation of the cut-points is followed by estimation of confidence intervals for the annual indices. This is possible because the model output also includes estimates of each index. The confidence intervals are estimated from the posterior distribution of the parameter estimates. However, this does not work for zero indices whose fitted values would be infinite on the latent scale. A good solution would be to calculate likelihood intervals, but this is a challenging numerical problem and has been left for a future release. Instead, the previous very ad-hoc approach has been replaced by a moderately ad-hoc approach. Specifically, an infinite value for a zero index is replaced by a value larger than all the fitted values for positive indices. This is done by taking all the positive indices, fitting a linear model of fitted value against square root index, and predicting what the fitted value should be when the index is zero. The square root scale is based on the typical relationship between fitted values and indices observed in the OSPAR 2025 assessment. The associated standard error is taken to be the upper 90th quantile of the standard errors associated with positive indices (with a suitable adjustment for the number of measurements used in each), which is reasonable since standard errors increase as the number of zero measurements increase but not in a very predictable manner (at least not in the OSPAR 2025 assessment). The upper confidence limit on a zero index is then estimated by simulating from the posterior distribution of the parameter estimates as before. (The lower confidence limit is zero by definition.) The estimation routine has been renamed `ordinal_theta_cl` (previously `ctsm.VDS.index.cl`).
 
