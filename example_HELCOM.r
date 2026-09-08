@@ -1,4 +1,6 @@
-# Introduction ----
+# This file is for testing code using the HELCOM example data.
+# NB any substantive changes made here need to be replicated in the 
+# HELCOM example vignette (vignettes/example_HELCOM.Rmd.orig)
 
 # Water assessment ----
 
@@ -12,7 +14,7 @@ water_data <- read_data(
   contaminants = "water.txt", 
   stations = "stations.txt", 
   data_dir = file.path("data", "example_HELCOM"),
-  info_dir = "./information/HELCOM_2023", 
+  info_dir = file.path("information", "example_HELCOM"),
   extraction = "2023/08/23"
 )  
 
@@ -51,7 +53,7 @@ sediment_data <- read_data(
   contaminants = "sediment.txt", 
   stations = "stations.txt", 
   data_dir = file.path("data", "example_HELCOM"),
-  info_dir = "./information/HELCOM_2023", 
+  info_dir = file.path("information", "example_HELCOM"), 
   extraction = "2023/08/23"
 )  
 
@@ -112,7 +114,7 @@ biota_data <- read_data(
   contaminants = "biota.txt", 
   stations = "stations.txt", 
   data_dir = file.path("data", "example_HELCOM"),
-  info_dir = "./information/HELCOM_2023", 
+  info_dir = file.path("information", "example_HELCOM"),
   extraction = "2023/08/23"
 )
 

@@ -22,6 +22,7 @@ Useful links:
 
 Authors:
 \itemize{
+  \item OSPAR Commission (OSPAR) \email{data@ospar.org} [copyright holder, funder]
   \item Arctic Monitoring and Assessment Programme (AMAP) \email{amap@amap.no} [copyright holder, funder]
   \item Helsinki Commission (HELCOM) \email{secretariat@helcom.fi} [copyright holder, funder]
   \item International Council for the Exploration of the Sea (ICES) \email{info@ices.dk} [copyright holder]

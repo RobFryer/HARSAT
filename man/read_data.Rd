@@ -16,7 +16,8 @@ read_data(
   extraction = NULL,
   max_year = NULL,
   oddity_dir = "oddities",
-  control = list()
+  control = list(),
+  file_diagnostics = FALSE
 )
 }
 \arguments{
@@ -62,6 +63,9 @@ will be created if it does not already exist.}
 used to run the assessment. These include the reporting window; the way in
 which data are matched to stations following an ICES extraction;
 information about reporting regions, and so on. See Details.}
+
+\item{file_diagnostics}{A logical which, when \code{TRUE}, prints out the MD5
+digest for each input file. Defaults to \code{FALSE}.}
 }
 \value{
 A list with the following components:

@@ -7,8 +7,6 @@
 pretty_unit(unit, html = FALSE)
 }
 \arguments{
-\item{unit}{}
-
 \item{html}{A logical with TRUE returning an html representation for use in
 markdown and FALSE (default) returning an text expression for use in lattice
 (grid) graphics}

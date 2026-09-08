@@ -109,7 +109,7 @@ water_data <- read_data(
   contaminants = "water.txt", 
   stations = "stations.txt", 
   data_dir = file.path(working.directory, "data", "example_HELCOM"),
-  info_dir = file.path(working.directory, "information", "HELCOM_2023"), 
+  info_dir = file.path(working.directory, "information", "example_HELCOM"), 
   extraction = "2023/08/23"
 )
 ```
@@ -278,7 +278,7 @@ sediment_data <- read_data(
   contaminants = "sediment.txt",
   stations = "stations.txt",
   data_dir = file.path(working.directory, "data", "example_HELCOM"),
-  info_dir = file.path(working.directory, "information", "HELCOM_2023"),
+  info_dir = file.path(working.directory, "information", "example_HELCOM"),
   extraction = "2023/08/23"
 )
 
@@ -390,7 +390,7 @@ biota_data <- read_data(
   contaminants = "biota.txt", 
   stations = "stations.txt", 
   data_dir = file.path(working.directory, "data", "example_HELCOM"),
-  info_dir = file.path(working.directory, "information", "HELCOM_2023"), 
+  info_dir = file.path(working.directory, "information", "example_HELCOM"), 
   extraction = "2023/08/23"
 )
 
