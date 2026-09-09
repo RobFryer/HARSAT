@@ -4,7 +4,7 @@
 \alias{read_contaminants}
 \title{Reads contaminant data}
 \usage{
-read_contaminants(file, data_dir = ".", info)
+read_contaminants(file, data_dir = ".", info, file_diagnostics = FALSE)
 }
 \arguments{
 \item{file}{A file reference for the contaminant data.}

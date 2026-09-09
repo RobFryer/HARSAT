@@ -4,21 +4,20 @@
 \alias{locate_information_file}
 \title{Find the path for an information file}
 \usage{
-locate_information_file(name, path)
+locate_information_file(path, name)
 }
 \arguments{
-\item{name}{A string: the name of the file, e.g., \code{thresholds_biota.csv}}
-
-\item{path}{A vector of strings, directories to search. The information directory
+\item{path}{A string giving the directory to search. The information directory
 for the package is automatically searched if we haven't found the
-file anywhere else}
+file in this directory}
+
+\item{name}{A string: the name of the file, e.g., \code{thresholds_biota.csv}}
 }
 \value{
-A string, the absolute path for the file, or \code{NULL} if the file
-cannot be found anywhere.
+A string, the path to the file, or \code{""} if the file cannot be
+found.
 }
 \description{
-Locates a requested information file, searching the
-information file path. If the requested file cannot be found and
-\code{required} is not false, stops with an error.
+Locates a requested information file, searching the information file path,
+and then looking in the package itself.
 }

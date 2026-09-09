@@ -42,7 +42,9 @@ library(readxl)
 #'   used to run the assessment. These include the reporting window; the way in
 #'   which data are matched to stations following an ICES extraction;
 #'   information about reporting regions, and so on. See Details.
-#'
+#' @param file_diagnostics A logical which, when `TRUE`, prints out the MD5 
+#'   digest for each input file. Defaults to `FALSE`.
+#'   
 #' @returns A list with the following components:
 #' * `call` The function call.
 #' * `info` A list containing the reference tables and the control parameters.
@@ -117,7 +119,8 @@ read_data <- function(
   extraction = NULL, 
   max_year = NULL,
   oddity_dir = "oddities",
-  control = list()) {
+  control = list(), 
+  file_diagnostics = FALSE) {
 
   # import_functions.R
 
@@ -195,14 +198,14 @@ read_data <- function(
   
   # read in reference tables
   
-  info <- read_info(info, info_dir, info_files)
+  info <- read_info(info, info_dir, info_files, file_diagnostics)
   
 
   # read in station dictionary, contaminant and biological effects data and QA data
   
-  stations <- read_stations(stations, data_dir, info)
+  stations <- read_stations(stations, data_dir, info, file_diagnostics)
 
-  data <- read_contaminants(contaminants, data_dir, info)
+  data <- read_contaminants(contaminants, data_dir, info, file_diagnostics)
 
   if (data_format == "ICES") {
 
@@ -496,118 +499,254 @@ control_modify <- function(control_default, control) {
 }
 
 
+# Find the path for an information file
+# 
+# Locates a requested information file, searching the
+# information file path. If the requested file cannot be found and
+# `required` is not false, stops with an error.
+# 
+# @param name A string: the name of the file, e.g., `thresholds_biota.csv`
+# @param path A vector of strings, directories to search. The information directory
+#   for the package is automatically searched if we haven't found the 
+#   file anywhere else
+# @returns A string, the absolute path for the file, or `NULL` if the file 
+#   cannot be found anywhere.
+# locate_information_file <- function(name, path) {
+# 
+#   # No point doing this intelligently. The goal is to find the file with
+#   # least steps.
+#   for(directory in path) {
+#     search <- normalizePath(file.path(directory, name), mustWork = FALSE)
+#     if(file.exists(search)) {
+#       cat("Found in path", name, search, "\n")
+#       return(search)
+#     }
+#   }
+# 
+#   # If we fail to find it, fall back to system.file, which isn't clearly
+#   # documented but suggests it will return the full path.
+#   search_file <- file.path("information", name)
+#   search <- system.file(search_file, package = "harsat", mustWork = FALSE)
+#   if(file.exists(search)) {
+#     cat(paste("Found in package", name, search, "\n"))
+#     return(search)
+#   } else {
+#     warning(paste("Missing file in path:", name, path))
+#   }
+#   return(NULL)
+# }
+
+
 #' Find the path for an information file
 #' 
-#' Locates a requested information file, searching the
-#' information file path. If the requested file cannot be found and
-#' `required` is not false, stops with an error.
+#' Locates a requested information file, searching the information file path,
+#' and then looking in the package itself.
 #' 
 #' @param name A string: the name of the file, e.g., `thresholds_biota.csv`
-#' @param path A vector of strings, directories to search. The information directory
+#' @param path A string giving the directory to search. The information directory
 #'   for the package is automatically searched if we haven't found the 
-#'   file anywhere else
-#' @returns A string, the absolute path for the file, or `NULL` if the file 
-#'   cannot be found anywhere.
-locate_information_file <- function(name, path) {
+#'   file in this directory
+#' @returns A string, the path to the file, or `""` if the file cannot be 
+#'   found. 
+locate_information_file <- function(path, name) {
 
-  # No point doing this intelligently. The goal is to find the file with
-  # least steps.
-  for(directory in path) {
-    search <- normalizePath(file.path(directory, name), mustWork = FALSE)
-    if(file.exists(search)) {
-      cat(paste("Found in path", name, search, "\n"))
-      return(search)
-    }
-  }
-
-  # If we fail to find it, fall back to system.file, which isn't clearly
-  # documented but suggests it will return the full path.
-  search_file <- file.path("information", name)
-  search <- system.file(search_file, package = "harsat", mustWork = FALSE)
-  if(file.exists(search)) {
-    cat(paste("Found in package", name, search, "\n"))
+  # look in user-supplied directory
+    
+  search <- file.path(path, name)
+  if (file.exists(search)) {
     return(search)
   }
-    warning(paste("Missing file in path:", name, path))
-  return(NULL)
+
+  # fall back to system.file, which returns the full path.
+  search <- system.file("information", name, package = "harsat")
+  return(search)
 }
 
-read_info <- function(info, path, info_files) {
+
+read_info <- function(info, path, info_files, file_diagnostics) {
   
   # location: import_functions.R
   # purpose: reads in reference tables, using default files unless overruled 
   #  by info_control
-  
-  # default reference tables
 
-  ## If the path is a string, make it a vector path
-  if(is.character(path)) {
-    path <- c(path)
-  }
+  cat("\nReading reference tables\n")
+  
+  
+  # set up default file locations
+  # determinand, species (biota) and (optionally) thresholds files must be 
+  # supplied by user; i.e. can't be found in the package
+  # the others can be supplied by the user, but otherwise are found in the 
+  # package
+  # all the defaults can be overwritten by argument info_files
 
   files <- list(
-    determinand = locate_information_file("determinand.csv", path),
-    species = locate_information_file("species.csv", path),
-    thresholds = locate_information_file(paste0("thresholds_", info$compartment, ".csv"), path)
+    determinand = file.path(path, "determinand.csv"),
+    species     = file.path(path, "species.csv"),
+    thresholds  = file.path(path, paste0("thresholds_", info$compartment, ".csv")),
+    matrix            = locate_information_file(path, "matrix.csv"), 
+    method_extraction = locate_information_file(path, "method_extraction.csv"),
+    pivot_values      = locate_information_file(path, "pivot_values.csv"), 
+    imposex           = locate_information_file(path, "imposex.csv")
   )
   
-  files$method_extraction <- locate_information_file("method_extraction.csv", path)
-  files$pivot_values <- locate_information_file("pivot_values.csv", path)
-  files$matrix <- locate_information_file("matrix.csv", path)
-  files$imposex <- locate_information_file("imposex.csv", path)
   
-  # modify with user supplied files
+  # overwrite default locations with user-supplied versions, either different
+  # file names or paths
   
   files <- modifyList(files, info_files, keep.null = TRUE)
   
 
-  # check determinand and species reference tables have not been made NULL
-  # threshold values do not need to be specified (if only interested in trends)
-  # other files unlikely to be altered by users at this stage
+  # read in files with supporting messages for the user
 
-  if (is.null(files$determinand)) {
-    stop(
-      "\nDeterminand reference table not specified.\n",
-      "Check for an error in argument 'info_files'",
-      call. = FALSE
-    )
-  }
+  id <- names(files)
   
-  if (info$compartment == "biota" && is.null(files$species)) {
-    stop(
-      "\nSpecies reference table not specified.\n",
-      "Check for an error in argument 'info_files'",
-      call. = FALSE
-    )
-  }
-  
-
-  info$determinand <- ctsm_read_determinand(
-    files$determinand, info$compartment
+  info[id] <- lapply(
+    id, 
+    FUN = read_info_engine, 
+    files = files, 
+    compartment = info$compartment,
+    file_diagnostics = file_diagnostics
   )
-  
-  info$matrix <- ctsm_read_matrix(files$matrix)
-  
-  if (info$compartment == "biota") {
-    info$species <- ctsm_read_species(files$species)
-    info$imposex <- ctsm_read_imposex(files$imposex)
-  }
 
-  if (info$compartment == "sediment") {
-    info$method_extraction <- ctsm_read_method_extraction(
-      files$method_extraction
-    ) 
-    info$pivot_values <- ctsm_read_pivot_values(files$pivot_values)
-  }  
-      
-  if (!is.null(files$thresholds)) {
-    info$thresholds <- ctsm_read_thresholds(
-      files$thresholds, info$compartment
-    )
-  }
+  cat("\n")
   
   info
 }
+
+
+
+#' Read a reference table 
+#' 
+#' Utility function for reading reference tables:  
+#' 
+#' * checks whether the table is required
+#' * checks whether the specified file exists
+#' * calls the appropriate function to read the file
+#' * generates messages, warnings and errors as appropriate
+#'  
+#' @param id Character string identifying the reference table; currently must
+#' be one of `"determinand"`, `"species"`, `"thresholds"`, `"matrix"`, 
+#' `"imposex"`,`"pivot_values", `"method_extraction"`.
+#' @param files Named list of file paths, with one of the names matching `id` 
+#' @param compartment Character string: must be one of `"biota"`, `"sediment"` 
+#' or `"water"`
+#' @param file_diagnostics Logical. The default (`FALSE`) is to print out a 
+#' simple message confirming which file has been read. When `TRUE`, the MD5 
+#' digest and full path is also printed.  
+#'
+#' @returns A reference table, or `NULL` if it is not required or cannot be 
+#' found.
+read_info_engine <- function(id, files, compartment, file_diagnostics = FALSE) {
+
+  ok <- c(
+    "determinand", "species", "thresholds", "matrix", "imposex", "pivot_values", 
+    "method_extraction"
+  ) 
+  
+  if (!id %in% ok) {
+    stop("Unrecognised reference table identifier")
+  }
+
+  if (!compartment %in% c("biota", "sediment", "water")) {
+    stop("Unrecognised compartment")
+  }
+  
+  
+  # pick out which files are required - compartment specific
+
+  required <- switch(
+    id, 
+    species = compartment == "biota", 
+    imposex = compartment == "biota", 
+    method_extraction = compartment == "sediment", 
+    pivot_values = compartment == "sediment",
+    TRUE
+  )
+
+  if (!required) {
+    return(NULL)
+  }  
+
+  
+  # process the file
+  
+  infile <- files[[id]]
+  
+  if (file.exists(infile)) {
+    
+    # all good - print out information for user and read in file
+    
+    cat(" - ", id, " from: '" , infile, "'\n", sep = "")
+    if (file_diagnostics) {
+      report_file_digest(infile)
+    }    
+    
+    out <- switch(
+      id,
+      determinand       = ctsm_read_determinand(infile, compartment),
+      species           = ctsm_read_species(infile),
+      thresholds        = ctsm_read_thresholds(infile, compartment), 
+      matrix            = ctsm_read_matrix(infile),
+      imposex           = ctsm_read_imposex(infile),
+      method_extraction = ctsm_read_method_extraction(infile),
+      pivot_values      = ctsm_read_pivot_values(infile)
+    )
+    return(out)
+    
+  } else {
+    
+    # error messaging
+    
+    full_path <- normalizePath(infile, mustWork = FALSE)
+
+    if (id %in% c("determinand", "species")) {
+
+      stop(
+        "\n", id, " reference table can't be found here:\n",
+        "  ", full_path, 
+        call. = FALSE
+      )
+    
+    } else if (id ==  "thresholds") {
+      
+      if (file_diagnostics) {
+        message(
+          "- thresholds: no values supplied\n", 
+          "  looking for file: '", full_path, "'" 
+        )
+      } else {
+        message(
+          "- thresholds: no values supplied; if there should be values try ", 
+          "running with\n  'file_diagnostics = TRUE' to see what is going on"
+        )
+      }
+
+    } else {
+      
+      extra_text <- switch(
+        id, 
+        matrix = "later code might fail, partiularly reporting and plotting",
+        imposex = "later code will fail if imposex is being assessed",
+        pivot_values = "later code might fail if normalising concentrations",
+        method_extraction = "later code might fail if normalising concentrations",
+        "later code might fail"
+      )
+      
+      warning(
+        "\n", id, " reference table can't be found here:\n",
+        "  ", full_path, "\n",
+        "  ", extra_text,
+        call. = FALSE,
+        immediate. = TRUE
+      )
+    
+    } 
+    
+    return(NULL)    
+  }
+
+}
+
 
 
 #' Generates and logs a file digest
@@ -620,8 +759,8 @@ read_info <- function(info, path, info_files) {
 #' 
 #' @param infile the input file name
 report_file_digest <- function(infile) {
-  md5 <- digest::digest(infile, algo='md5')
-  cat("MD5 digest for: '", infile, "': '", md5, "'\n", sep = "")
+  md5 <- digest::digest(infile, algo = 'md5')
+  cat("   MD5 digest for: '", infile, "': '", md5, "'\n", sep = "")
 }
 
 
@@ -640,8 +779,6 @@ report_file_digest <- function(infile) {
 #' @returns A data frame containing the input file
 #' 
 read_ICES_file <- function(infile, var_id) {
-
-  report_file_digest(infile) 
 
   # read in first line of data to check column names
   
@@ -689,13 +826,17 @@ read_ICES_file <- function(infile, var_id) {
 #' * compartment: `"biota"`, `"sediment"` or `"water"`
 #' * data_format: `"ICES"` or `"external"`
 #' @returns A data frame containing the station dictionary.
-read_stations <- function(file, data_dir = ".", info) {
+read_stations <- function(file, data_dir = ".", info, file_diagnostics = FALSE) {
 
   # import functions
 
   infile <- file.path(data_dir, file)
-  cat("Reading station dictionary from:\n '", infile, "'\n", sep = "")
+  cat("Reading station dictionary from:\n   '", infile, "'\n", sep = "")
 
+  if (file_diagnostics) {
+    report_file_digest(infile)    
+  }
+  
   
   if (info$data_format == "ICES") {
 
@@ -764,8 +905,7 @@ read_stations <- function(file, data_dir = ".", info) {
     
     # check required variables are present in data
     
-    report_file_digest(infile)
-	  stations <- safe_read_file(infile, strip.white = TRUE, nrows = 1)
+    stations <- safe_read_file(infile, strip.white = TRUE, nrows = 1)
     
     ok <- required %in% names(stations)
     
@@ -830,7 +970,7 @@ read_stations <- function(file, data_dir = ".", info) {
 #' @returns A data frame containing the contaminant data.
 #' 
 #' @export
-read_contaminants <- function(file, data_dir = ".", info) {
+read_contaminants <- function(file, data_dir = ".", info, file_diagnostics = FALSE) {
 
   # silence non-standard evaluation warnings
   .data <- NULL
@@ -840,9 +980,13 @@ read_contaminants <- function(file, data_dir = ".", info) {
   
   infile <- file.path(data_dir, file)
   cat(
-    "\nReading contaminant and effects data from:\n '", infile, "'\n", sep = ""
+    "\nReading contaminant and effects data from:\n   '", infile, "'\n", sep = ""
   )
 
+  if (file_diagnostics) {
+    report_file_digest(infile)    
+  }
+  
 
   if (info$data_format == "ICES") {
 
@@ -1004,7 +1148,6 @@ read_contaminants <- function(file, data_dir = ".", info) {
 
     # check required variables are present in data
 
-    report_file_digest(infile)    
     data <- safe_read_file(infile, strip.white = TRUE, nrows = 1)
   
     ok <- required %in% names(data)

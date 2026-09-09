@@ -176,7 +176,6 @@ ctsm_read_species <- function(file) {
 
   # check required variables are present in data
   
-  report_file_digest(file)
   data <- safe_read_file(
     file, 
     strip.white = TRUE, 
@@ -475,7 +474,6 @@ ctsm_read_determinand <- function(
   # check required variables are present in data and issue message if optional
   # variables are not
   
-  report_file_digest(file)
   data <- safe_read_file(
     file,
     strip.white = TRUE, 
@@ -804,7 +802,6 @@ ctsm_read_thresholds <- function(
   
   compartment = match.arg(compartment)
   
-  report_file_digest(file)
   data <- safe_read_file(
     file, 
     na.strings = "",
@@ -881,7 +878,6 @@ convert_reftable <- function(
   # silence non-standard evaluation warnings
   .data <- NULL
 
-  report_file_digest(input_file)
   data <- safe_read_file(input_file, na.strings = "", strip.white = TRUE)
   
  
@@ -2513,7 +2509,6 @@ get_basis_biota_OSPAR <- function(data, info) {
 # Matrix ----
 
 ctsm_read_matrix <- function(file) {
-  report_file_digest(file)
   safe_read_file(
     file, 
     row.names = "matrix", 
@@ -2534,7 +2529,6 @@ ctsm_read_regions <- function(file, purpose) {
     )
   }
   
-  report_file_digest(file)
   safe_read_file(
     file, 
     row.names = "OSPAR_subregion", 
@@ -2547,7 +2541,6 @@ ctsm_read_regions <- function(file, purpose) {
 # Method of extraction and pivot values ----
 
 ctsm_read_method_extraction <- function(file) {
-  report_file_digest(file)
   safe_read_file(
     file, 
     row.names = "METCX",  
@@ -2558,7 +2551,6 @@ ctsm_read_method_extraction <- function(file) {
 
 
 ctsm_read_pivot_values <- function(file) {
-  report_file_digest(file)
   safe_read_file(
     file, 
     na.strings = "",
@@ -2571,7 +2563,6 @@ ctsm_read_pivot_values <- function(file) {
 # Imposex ----
 
 ctsm_read_imposex <- function(file) {
-  report_file_digest(file)
   safe_read_file(
     file, 
     na.strings = "",

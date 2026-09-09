@@ -4,7 +4,7 @@
 \alias{read_stations}
 \title{Reads station dictionary}
 \usage{
-read_stations(file, data_dir = ".", info)
+read_stations(file, data_dir = ".", info, file_diagnostics = FALSE)
 }
 \arguments{
 \item{file}{A file reference for the station dictionary.}
